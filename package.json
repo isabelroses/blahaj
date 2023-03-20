@@ -4,7 +4,8 @@
     "chalk": "^4.1.2",
     "discord-api-types": "^0.37.36",
     "discord.js": "^14.8.0",
-    "dotenv": "^16.0.3"
+    "dotenv": "^16.0.3",
+    "module-alias": "^2.2.2"
   },
   "name": "blowhigh",
   "version": "1.0.0",
