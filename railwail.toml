@@ -1,0 +1,4 @@
+#:schema https://railway.app/railway.schema.json
+
+[build]
+watchPatterns = ["**", "!/README.md", "!/LICENSE", "!/.github/"]
