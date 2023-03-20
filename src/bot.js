@@ -3,6 +3,10 @@ const { token } = process.env;
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
 
+require("@helpers/extenders/Message");
+require("@helpers/extenders/Guild");
+require("@helpers/extenders/GuildChannel");
+
 const client = new Client({ intents: GatewayIntentBits.Guilds });
 client.commands = new Collection();
 client.comamndArray = [];
