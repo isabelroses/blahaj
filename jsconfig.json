@@ -13,6 +13,9 @@
             "@helpers/*": [
                 "./src/helpers/*"
             ],
+            "@schemas/*": [
+                "./src/database/schemas/*"
+            ],
             "@src/*": [
                 "./src/*"
             ],
