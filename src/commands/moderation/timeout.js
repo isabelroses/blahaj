@@ -18,13 +18,13 @@ module.exports = {
         ))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the timeout').setRequired(false)),
     async execute(interaction) {
-        if (!interaction.member.permissions.has(PermissionsBitField.FLAGS.TIMEOUT_MEMBERS)) {
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             await interaction.reply({
                 content: 'You do not have permission to use this command',
                 ephemeral: true
             });
         }
-        if (!interaction.guild.me.permissions.has(PermissionsBitField.FLAGS.TIMEOUT_MEMBERS)) {
+        if (!interaction.guild.me.permissions.has(PermissionsBitField.FLAGS.ModerateMembers)) {
             await interaction.reply({
                 content: 'I do not have permission to use this command',
                 ephemeral: true

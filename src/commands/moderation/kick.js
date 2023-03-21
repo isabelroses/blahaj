@@ -7,13 +7,13 @@ module.exports = {
         .addUserOption(option => option.setName('user').setDescription('The user to kick').setRequired(true))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the kick').setRequired(false)),
     async execute(interaction) {
-        if (!interaction.member.permissions.has(PermissionsBitField.FLAGS.KICK_MEMBERS)) {
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
             await interaction.reply({
                 content: 'You do not have permission to use this command',
                 ephemeral: true
             });
         }
-        if (!interaction.guild.me.permissions.has(PermissionsBitField.FLAGS.KICK_MEMBERS)) {
+        if (!interaction.guild.me.permissions.has(PermissionsBitField.Flags.KickMembers)) {
             await interaction.reply({
                 content: 'I do not have permission to use this command',
                 ephemeral: true
