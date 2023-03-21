@@ -12,7 +12,6 @@ module.exports = (client) => {
                 const command = require(`../../commands/${folder}/${file}`);
                 commands.set(command.data.name, command);
                 comamndArray.push(command.data.toJSON());
-                console.log(`Loaded command ${command.data.name}`);
             }
         }
         const clientId = '1087418361283092510';
@@ -23,7 +22,6 @@ module.exports = (client) => {
             await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
                 body: client.comamndArray
             });
-            console.log('Successfully registered application commands.');
         } catch (error) {
             console.error(error);
         }
