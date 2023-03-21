@@ -4,9 +4,10 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('untimeout')
         .setDescription('Untimes out a user')
-        .addUserOption(option => option.setName('user').setDescription('The user to untimeout').setRequired(true)),
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.ModerateMembers)
+        .addUserOption(option => option.setName('target').setDescription('The user to untimeout').setRequired(true)),
     async execute(interaction) {
-        const user = interaction.options.getUser('user');
+        const user = interaction.options.getUser('target');
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
         await member.untimeout(time, reason).catch(console.error);
         await interaction.reply({

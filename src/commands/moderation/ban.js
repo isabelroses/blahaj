@@ -4,12 +4,14 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('ban')
         .setDescription('Bans a user')
-        .addUserOption(option => option.setName('user').setDescription('The user to ban').setRequired(true))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.BanMembers)
+        .addUserOption(option => option.setName('target').setDescription('The user to ban').setRequired(true))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the ban').setRequired(false)),
     async execute(interaction) {
-        const user = interaction.options.getUser('user');
-        let reason = interaction.options.getString('reason') || 'No reason provided';
+        const user = interaction.options.getUser('target');
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
+        let reason = interaction.options.getString('reason');
+        if (!reason) reason = 'No reason provided';
         user.send(`You have been banned from ${interaction.guild.name} for ${reason}`).catch(console.error);
         await member.ban({
             delete_message_days: 7,

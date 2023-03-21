@@ -4,7 +4,8 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('timeout')
         .setDescription('Times out a user')
-        .addUserOption(option => option.setName('user').setDescription('The user to time out').setRequired(true))
+        .setDefaultMemberPermissions(PermissionsBitField.Flags.ModerateMembers)
+        .addUserOption(option => option.setName('target').setDescription('The user to time out').setRequired(true))
         .addStringOption(option => option.setName('time').setDescription('The duration to time the user out').setRequired(true).addChoices(
             { name: '60 seconds', value: '60' },
             { name: '5 minutes', value: '300' },
@@ -18,10 +19,10 @@ module.exports = {
         ))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the timeout').setRequired(false)),
     async execute(interaction) {
-        const user = interaction.options.getUser('user');
-        const time = interaction.options.getString('time');
-        let reason = interaction.options.getString('reason') || 'No reason provided';
+        const user = interaction.options.getUser('target');
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
+        let reason = interaction.options.getString('reason');
+        if (!reason) reason = 'No reason provided';
         await member.timeout(time * 1000, reason).catch(console.error);
         await interaction.reply({
             content: `Timed out ${user.tag} for ${time} seconds for ${reason}`,
