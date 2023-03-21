@@ -18,6 +18,7 @@ module.exports = {
         ))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the timeout').setRequired(false)),
     async execute(interaction, client) {
+        const user = interaction.options.getUser('user');
         if (!interaction.guild.members.fetch(user.id).permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             await interaction.reply({
                 content: 'You do not have permission to use this command',
@@ -48,7 +49,6 @@ module.exports = {
                 ephemeral: true
             });
         }
-        const user = interaction.options.getUser('user');
         const reason = interaction.options.getString('reason') || 'No reason provided';
         const duration = interaction.options.getString('time');
         await user.timeout(duration * 1000, reason);

@@ -7,6 +7,7 @@ module.exports = {
         .addUserOption(option => option.setName('user').setDescription('The user to ban').setRequired(true))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the ban').setRequired(false)),
     async execute(interaction) {
+        const user = interaction.options.getUser('user');
         if (!interaction.guild.members.fetch(user.id).permissions.has(PermissionsBitField.Flags.BanMembers)) {
             await interaction.reply({
                 content: 'You do not have permission to use this command',
@@ -37,7 +38,6 @@ module.exports = {
                 ephemeral: true
             });
         }
-        const user = interaction.options.getUser('user');
         const reason = interaction.options.getString('reason') || 'No reason provided';
         await interaction.guild.bans.create(user.id, { reason });
         await interaction.reply({
