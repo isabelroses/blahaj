@@ -7,13 +7,13 @@ module.exports = {
         .addUserOption(option => option.setName('user').setDescription('The user to kick').setRequired(true))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the kick').setRequired(false)),
     async execute(interaction, client) {
-        if (!interaction.user.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+        if (!interaction.guild.members.fetch(user.id).permissions.has(PermissionsBitField.Flags.KickMembers)) {
             await interaction.reply({
                 content: 'You do not have permission to use this command',
                 ephemeral: true
             });
         }
-        if (!client.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+        if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.KickMembers)) {
             await interaction.reply({
                 content: 'I do not have permission to use this command',
                 ephemeral: true
@@ -25,7 +25,7 @@ module.exports = {
                 ephemeral: true
             });
         }
-        if (interaction.options.getUser('user').id === client.id) {
+        if (interaction.options.getUser('user').id === interaction.guild.me.id) {
             await interaction.reply({
                 content: 'You cannot kick me',
                 ephemeral: true

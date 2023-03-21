@@ -6,13 +6,13 @@ module.exports = {
         .setDescription('Untimes out a user')
         .addUserOption(option => option.setName('user').setDescription('The user to untimeout').setRequired(true)),
     async execute(interaction) {
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+        if (!interaction.guild.members.fetch(user.id).permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             await interaction.reply({
                 content: 'You do not have permission to use this command',
                 ephemeral: true
             });
         }
-        if (!interaction.guild.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+        if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             await interaction.reply({
                 content: 'I do not have permission to use this command',
                 ephemeral: true
