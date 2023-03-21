@@ -13,7 +13,7 @@ module.exports = {
         let reason = interaction.options.getString('reason');
         if (!reason) reason = 'No reason provided';
         user.send(`You have been kicked from ${interaction.guild.name} for ${reason}`).catch(console.error);
-        await member.kick(reason).catch(console.error);
+        await member.kick(`You have been kicked from ${interaction.guild.name} for ${reason}`).catch(console.log("Dm's are disabled for this user"));
         await interaction.reply({
             content: `Kicked ${user.tag} for ${reason}`,
             ephemeral: true

@@ -12,7 +12,7 @@ module.exports = {
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
         let reason = interaction.options.getString('reason');
         if (!reason) reason = 'No reason provided';
-        user.send(`You have been banned from ${interaction.guild.name} for ${reason}`).catch(console.error);
+        user.send(`You have been banned from ${interaction.guild.name} for ${reason}`).catch(console.log("Dm's are disabled for this user"));
         await member.ban({
             delete_message_days: 7,
             reason: reason

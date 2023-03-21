@@ -22,6 +22,8 @@ module.exports = {
         const user = interaction.options.getUser('target');
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
         let reason = interaction.options.getString('reason');
+        let time = interaction.options.getString('time');
+        if (!time) time = '60';
         if (!reason) reason = 'No reason provided';
         await member.timeout(time * 1000, reason).catch(console.error);
         await interaction.reply({
