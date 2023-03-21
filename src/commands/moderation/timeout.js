@@ -20,29 +20,12 @@ module.exports = {
         .addStringOption(option => option.setName('reason').setDescription('The reason for the timeout').setRequired(false)),
     async execute(interaction, client) {
         const user = interaction.options.getUser('user');
-        if (interaction.options.getUser('user').id === interaction.user.id) {
-            await interaction.reply({
-                content: 'You cannot timeout yourself',
-                ephemeral: true
-            });
-        }
-        if (interaction.options.getUser('user').id === interaction.guild.me.id) {
-            await interaction.reply({
-                content: 'You cannot timeout me',
-                ephemeral: true
-            });
-        }
-        if (interaction.options.getUser('user').id === interaction.guild.ownerId) {
-            await interaction.reply({
-                content: 'You cannot timeout the server owner',
-                ephemeral: true
-            });
-        }
+        const time = interaction.options.getString('time');
         const reason = interaction.options.getString('reason') || 'No reason provided';
-        const duration = interaction.options.getString('time');
-        await user.timeout(duration * 1000, reason);
+        const member = await interaction.guild.members.fetch(user.id).catch(console.error);
+        await member.timeout(time * 1000, reason);
         await interaction.reply({
-            content: `Timed out ${user.tag} for ${reason}`,
+            content: `Timed out ${user.tag} for ${time} seconds for ${reason}`,
             ephemeral: true
         })
     }
