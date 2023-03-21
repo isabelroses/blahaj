@@ -13,7 +13,7 @@ module.exports = {
         const reason = interaction.options.getString('reason') || 'No reason provided';
 
         user.send(`You have been kicked from ${interaction.guild.name} for ${reason}`).catch(console.error);
-        await member.kick(reason);
+        await member.kick(reason).catch(console.error);
         await interaction.reply({
             content: `Kicked ${target.tag} for ${reason}`,
             ephemeral: true

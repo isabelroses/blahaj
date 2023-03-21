@@ -12,7 +12,10 @@ module.exports = {
         const reason = interaction.options.getString('reason') || 'No reason provided';
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
         user.send(`You have been banned from ${interaction.guild.name} for ${reason}`).catch(console.error);
-        await member.ban(reason);
+        await member.ban({
+            delete_message_days: 7,
+            reason: reason
+        }).catch(console.error);
         await interaction.reply({
             content: `Banned ${user.tag} for ${reason}`,
             ephemeral: true

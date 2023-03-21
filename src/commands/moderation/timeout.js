@@ -23,7 +23,7 @@ module.exports = {
         const time = interaction.options.getString('time');
         const reason = interaction.options.getString('reason') || 'No reason provided';
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
-        await member.timeout(time * 1000, reason);
+        await member.timeout(time * 1000, reason).catch(console.error);
         await interaction.reply({
             content: `Timed out ${user.tag} for ${time} seconds for ${reason}`,
             ephemeral: true

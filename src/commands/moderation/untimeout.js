@@ -9,7 +9,7 @@ module.exports = {
     async execute(interaction) {
         const user = interaction.options.getUser('user');
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
-        await member.untimeout(time, reason);
+        await member.untimeout(time, reason).catch(console.error);
         await interaction.reply({
             content: `Untimed out ${user.tag}`,
             ephemeral: true
