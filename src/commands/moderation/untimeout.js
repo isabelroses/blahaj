@@ -4,7 +4,6 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('untimeout')
         .setDescription('Untimes out a user')
-        .setDefaultPermission(PermissionsBitField.Flags.ModerateMembers)
         .addUserOption(option => option.setName('user').setDescription('The user to untimeout').setRequired(true)),
     async execute(interaction) {
         const user = interaction.options.getUser('user');
