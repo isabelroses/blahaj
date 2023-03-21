@@ -9,7 +9,7 @@ module.exports = {
         .addStringOption(option => option.setName('reason').setDescription('The reason for the ban').setRequired(false)),
     async execute(interaction) {
         const user = interaction.options.getUser('target');
-        const member = await interaction.guild.members.fetch(user.id).catch(console.error);
+        const member = await interaction.guild.members.cache.get(user.id).catch(console.error);
         let reason = interaction.options.getString('reason');
         if (!reason) reason = 'No reason provided';
         user.send(`You have been banned from ${interaction.guild.name} for ${reason}`).catch(console.log("Dm's are disabled for this user"));

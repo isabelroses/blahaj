@@ -8,7 +8,7 @@ module.exports = {
         .addUserOption(option => option.setName('target').setDescription('The user to untimeout').setRequired(true)),
     async execute(interaction) {
         const user = interaction.options.getUser('target');
-        const member = await interaction.guild.members.fetch(user.id).catch(console.error);
+        const member = await interaction.guild.members.cache.get(user.id).catch(console.error);
         await member.untimeout(time, reason).catch(console.error);
         await interaction.reply({
             content: `Untimed out ${user.tag}`,
