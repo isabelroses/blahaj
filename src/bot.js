@@ -3,6 +3,10 @@ const { token } = process.env;
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
 
+client.on('ready', () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+});
+
 const client = new Client({ intents: GatewayIntentBits.Guilds });
 client.commands = new Collection();
 client.comamndArray = [];
