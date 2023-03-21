@@ -20,7 +20,7 @@ module.exports = {
         .addStringOption(option => option.setName('reason').setDescription('The reason for the timeout').setRequired(false)),
     async execute(interaction) {
         const user = interaction.options.getUser('target');
-        const member = await interaction.guild.members.cache.get(user.id).catch(console.error);
+        const member = await interaction.guild.members.fetch(user.id).catch(console.error);
         let reason = interaction.options.getString('reason');
         let time = interaction.options.getString('time');
         if (!time) time = '60';
