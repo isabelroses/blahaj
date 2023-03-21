@@ -6,14 +6,14 @@ module.exports = {
         .setDescription('Bans a user')
         .addUserOption(option => option.setName('user').setDescription('The user to ban').setRequired(true))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the ban').setRequired(false)),
-    async execute(interaction) {
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+    async execute(interaction, client) {
+        if (!interaction.user.permissions.has(PermissionsBitField.Flags.BanMembers)) {
             await interaction.reply({
                 content: 'You do not have permission to use this command',
                 ephemeral: true
             });
         }
-        if (!interaction.guild.me.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+        if (!client.permissions.has(PermissionsBitField.Flags.BanMembers)) {
             await interaction.reply({
                 content: 'I do not have permission to use this command',
                 ephemeral: true
@@ -22,6 +22,18 @@ module.exports = {
         if (interaction.options.getUser('user').id === interaction.user.id) {
             await interaction.reply({
                 content: 'You cannot ban yourself',
+                ephemeral: true
+            });
+        }
+        if (interaction.options.getUser('user').id === client.id) {
+            await interaction.reply({
+                content: 'You cannot ban me',
+                ephemeral: true
+            });
+        }
+        if (interaction.options.getUser('user').id === interaction.guild.ownerId) {
+            await interaction.reply({
+                content: 'You cannot ban the server owner',
                 ephemeral: true
             });
         }
