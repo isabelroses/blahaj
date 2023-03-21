@@ -4,22 +4,11 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('kick')
         .setDescription('Kicks a user')
+        .setDefaultPermission(PermissionsBitField.Flags.KickMembers)
         .addUserOption(option => option.setName('user').setDescription('The user to kick').setRequired(true))
         .addStringOption(option => option.setName('reason').setDescription('The reason for the kick').setRequired(false)),
     async execute(interaction, client) {
         const user = interaction.options.getUser('user');
-        if (!interaction.guild.members.fetch(user.id).permissions.has(PermissionsBitField.Flags.KickMembers)) {
-            await interaction.reply({
-                content: 'You do not have permission to use this command',
-                ephemeral: true
-            });
-        }
-        if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-            await interaction.reply({
-                content: 'I do not have permission to use this command',
-                ephemeral: true
-            });
-        }
         if (interaction.options.getUser('user').id === interaction.user.id) {
             await interaction.reply({
                 content: 'You cannot kick yourself',
