@@ -4,6 +4,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('timeout')
         .setDescription('Times out a user')
+        .setDefaultPermission(PermissionsBitField.Flags.ModerateMembers)
         .addUserOption(option => option.setName('user').setDescription('The user to time out').setRequired(true))
         .addStringOption(option => option.setName('time').setDescription('The duration to time the user out').setRequired(true).addChoices(
             { name: '60 seconds', value: '60' },
@@ -19,18 +20,6 @@ module.exports = {
         .addStringOption(option => option.setName('reason').setDescription('The reason for the timeout').setRequired(false)),
     async execute(interaction, client) {
         const user = interaction.options.getUser('user');
-        if (!interaction.guild.members.fetch(user.id).permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-            await interaction.reply({
-                content: 'You do not have permission to use this command',
-                ephemeral: true
-            });
-        }
-        if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-            await interaction.reply({
-                content: 'I do not have permission to use this command',
-                ephemeral: true
-            });
-        }
         if (interaction.options.getUser('user').id === interaction.user.id) {
             await interaction.reply({
                 content: 'You cannot timeout yourself',
