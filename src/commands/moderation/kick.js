@@ -15,7 +15,7 @@ module.exports = {
         user.send(`You have been kicked from ${interaction.guild.name} for ${reason}`).catch(console.error);
         await member.kick(reason).catch(console.error);
         await interaction.reply({
-            content: `Kicked ${target.tag} for ${reason}`,
+            content: `Kicked ${user.tag} for ${reason}`,
             ephemeral: true
         })
     }
