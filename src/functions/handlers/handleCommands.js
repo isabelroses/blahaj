@@ -14,14 +14,17 @@ module.exports = (client) => {
                 comamndArray.push(command.data.toJSON());
             }
         }
-        const clientId = '1087418361283092510';
-        const guildId = '762413705383641158';
+        const clientId = process.env.clientId;
+        const guild_ids = client.guilds.cache.map(guild => guild.id);
         const rest = new REST({ version: '10' }).setToken(process.env.token);
         try {
             console.log('Started refreshing application (/) commands.');
-            await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
-                body: client.comamndArray
-            });
+            for (const guild_id of guild_ids) {
+                await rest.put(
+                    Routes.applicationGuildCommands(clientId, guild_id),
+                    { body: comamndArray },
+                ).then(() => console.log(`Successfully reloaded application (/) commands for guild ${guild_id}.`)).catch(console.error);
+            }
         } catch (error) {
             console.error(error);
         }

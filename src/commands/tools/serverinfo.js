@@ -7,19 +7,20 @@ module.exports = {
     async execute(interaction) {
 
         const { guild } = interaction;
-        const { name, ownerId, createdAt, region, memberCount } = guild;
+        const { name, ownerId, createdAt, memberCount } = guild;
         const icon = guild.iconURL({ dynamic: true });
         const roles = guild.roles.cache.size;
         const emojies = guild.emojis.cache.size;
         const id = guild.id;
 
         let baseVerification = guild.verificationLevel;
+        let verificationLevel = '';
 
-        if (baseVerification === '0') baseVerification = 'None';
-        if (baseVerification === '1') baseVerification = 'Low';
-        if (baseVerification === '2') baseVerification = 'Medium';
-        if (baseVerification === '3') baseVerification = 'High';
-        if (baseVerification === '4') baseVerification = 'Very High';
+        if (baseVerification == 0) verificationLevel = 'None';
+        if (baseVerification == 1) verificationLevel = 'Low';
+        if (baseVerification == 2) verificationLevel = 'Medium';
+        if (baseVerification == 3) verificationLevel = 'High';
+        if (baseVerification == 4) verificationLevel = 'Very High';
 
         const embed = new EmbedBuilder()
             .setTitle('Server Info')
@@ -27,10 +28,9 @@ module.exports = {
             .addFields({ name: 'Server Name', value: `${name}`, inline: false })
             .addFields({ name: 'Server ID', value: `${id}`, inline: false })
             .addFields({ name: 'Owner', value: `<@${ownerId}>`, inline: false })
-            .addFields({ name: 'Region', value: `${region}`, inline: false })
             .addFields({ name: 'Created At', value: `<t:${parseInt(createdAt / 1000)}:R>`, inline: false })
             .addFields({ name: 'Member Count', value: `${memberCount}`, inline: false })
-            .addFields({ name: 'Verification Level', value: `${baseVerification}`, inline: false })
+            .addFields({ name: 'Verification Level', value: `${verificationLevel}`, inline: false })
             .addFields({ name: 'Roles', value: `${roles}`, inline: true })
             .addFields({ name: 'Emojis', value: `${emojies}`, inline: true })
             .addFields({ name: 'Server Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true })
