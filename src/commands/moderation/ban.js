@@ -12,6 +12,13 @@ module.exports = {
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
         let reason = interaction.options.getString('reason');
         if (!reason) reason = 'No reason provided';
+
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.BanMembers)) return await interaction.reply({ content: 'You do not have permission to ban this user', ephemeral: true })
+        if (!member.kickable) return await interaction.reply({ content: 'This user cannot be timed out', ephemeral: true })
+        if (!member) return await interaction.reply({ content: `User ${user.tag} is not in this server`, ephemeral: true })
+        if (interaction.member.id === user.id) return await interaction.reply({ content: 'You cannot ban yourself', ephemeral: true })
+        if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return await interaction.reply({ content: 'You cannot ban this user', ephemeral: true })
+
         user.send(`You have been banned from ${interaction.guild.name} for ${reason}`).catch(console.log("Dm's are disabled for this user"));
         await member.ban({
             deleteMessageSeconds: 60 * 60 * 24 * 7,

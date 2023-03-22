@@ -25,6 +25,13 @@ module.exports = {
         let time = interaction.options.getString('time');
         if (!time) time = '60';
         if (!reason) reason = 'No reason provided';
+
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) return await interaction.reply({ content: 'You do not have permission to timeout this user', ephemeral: true })
+        if (!member.kickable) return await interaction.reply({ content: 'This user cannot be timed out', ephemeral: true })
+        if (!member) return await interaction.reply({ content: `User ${user.tag} is not in this server`, ephemeral: true })
+        if (interaction.member.id === user.id) return await interaction.reply({ content: 'You cannot timeout yourself', ephemeral: true })
+        if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return await interaction.reply({ content: 'You cannot timeout this user', ephemeral: true })
+
         await member.timeout(time * 1000, reason).catch(console.error);
         await interaction.reply({
             content: `Timed out ${user.tag} for ${time} seconds for ${reason}`,

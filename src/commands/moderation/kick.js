@@ -12,6 +12,13 @@ module.exports = {
         const member = await interaction.guild.members.fetch(user.id).catch(console.error);
         let reason = interaction.options.getString('reason');
         if (!reason) reason = 'No reason provided';
+
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.KickMembers)) return await interaction.reply({ content: 'You do not have permission to kick this user', ephemeral: true })
+        if (!member.kickable) return await interaction.reply({ content: 'This user cannot be timed out', ephemeral: true })
+        if (!member) return await interaction.reply({ content: `User ${user.tag} is not in this server`, ephemeral: true })
+        if (interaction.member.id === user.id) return await interaction.reply({ content: 'You cannot kick yourself', ephemeral: true })
+        if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return await interaction.reply({ content: 'You cannot kick this user', ephemeral: true })
+
         user.send(`You have been kicked from ${interaction.guild.name} for ${reason}`).catch(console.error);
         await member.kick(`You have been kicked from ${interaction.guild.name} for ${reason}`).catch(console.log("Dm's are disabled for this user"));
         await interaction.reply({
