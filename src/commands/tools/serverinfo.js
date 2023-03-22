@@ -31,9 +31,9 @@ module.exports = {
             .addFields({ name: 'Created At', value: `<t:${parseInt(createdAt / 1000)}:R>`, inline: false })
             .addFields({ name: 'Member Count', value: `${memberCount}`, inline: false })
             .addFields({ name: 'Verification Level', value: `${baseVerification}`, inline: false })
-            .addFields({ name: 'Roles', value: `${roles}`, inline: false })
-            .addFields({ name: 'Emojis', value: `${emojies}`, inline: false })
-            .addFields({ name: 'Server Boosts', value: `${guild.premiumSubscriptionCount}`, inline: false })
+            .addFields({ name: 'Roles', value: `${roles}`, inline: true })
+            .addFields({ name: 'Emojis', value: `${emojies}`, inline: true })
+            .addFields({ name: 'Server Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true })
             .setColor([255, 255, 255])
             .setFooter({
                 text: interaction.user.tag,
