@@ -7,20 +7,19 @@ module.exports = {
     async execute(interaction) {
 
         const { guild } = interaction;
-        const { name, ownerId, createdAt, region, memberCount } = guild;
+        const { members, name, ownerId, createdAt, region, memberCount } = guild;
         const icon = guild.iconURL({ dynamic: true });
         const roles = guild.roles.cache.size;
         const emojies = guild.emojis.cache.size;
         const id = guild.id;
 
-        let baseVerificationLevel = guild.VerificationLevel;
-        let VerificationLevel;
+        let baseVerification = guild.verificationLevel;
 
-        if (baseVerificationLevel === '0') VerificationLevel = 'None';
-        if (baseVerificationLevel === '1') VerificationLevel = 'Low';
-        if (baseVerificationLevel === '2') VerificationLevel = 'Medium';
-        if (baseVerificationLevel === '3') VerificationLevel = 'High';
-        if (baseVerificationLevel === '4') VerificationLevel = 'Very High';
+        if (baseVerification === '0') baseVerification = 'None';
+        if (baseVerification === '1') baseVerification = 'Low';
+        if (baseVerification === '2') baseVerification = 'Medium';
+        if (baseVerification === '3') baseVerification = 'High';
+        if (baseVerification === '4') baseVerification = 'Very High';
 
         const embed = new EmbedBuilder()
             .setTitle('Server Info')
@@ -31,7 +30,7 @@ module.exports = {
             .addFields({ name: 'Region', value: `${region}`, inline: false })
             .addFields({ name: 'Created At', value: `<t:${parseInt(createdAt / 1000)}:R>`, inline: false })
             .addFields({ name: 'Member Count', value: `${memberCount}`, inline: false })
-            .addFields({ name: 'Verification Level', value: `${VerificationLevel}`, inline: false })
+            .addFields({ name: 'Verification Level', value: `${baseVerification}`, inline: false })
             .addFields({ name: 'Roles', value: `${roles}`, inline: false })
             .addFields({ name: 'Emojis', value: `${emojies}`, inline: false })
             .addFields({ name: 'Server Boosts', value: `${guild.premiumSubscriptionCount}`, inline: false })
