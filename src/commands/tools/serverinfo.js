@@ -7,37 +7,42 @@ module.exports = {
     async execute(interaction) {
 
         const { guild } = interaction;
+        const { members } = guild;
         const { name, ownerId, createdAt, region, memberCount } = guild;
-        const { icon } = guild.iconURL({ dynamic: true });
+        const icon = guild.iconURL({ dynamic: true });
         const { roles } = guild.roles.cache.size;
         const { emojies } = guild.emojis.cache.size;
-        const { id } = guild.id;
+        const id = guild.id;
 
         let baseVerificationLevel = guild.verificationLevel;
+        let VerificationLevel;
 
-        if (baseVerificationLevel === '0') baseVerificationLevel = 'None';
-        if (baseVerificationLevel === '1') baseVerificationLevel = 'Low';
-        if (baseVerificationLevel === '2') baseVerificationLevel = 'Medium';
-        if (baseVerificationLevel === '3') baseVerificationLevel = 'High';
-        if (baseVerificationLevel === '4') baseVerificationLevel = 'Very High';
+        if (baseVerificationLevel === '0') VerificationLevel = 'None';
+        if (baseVerificationLevel === '1') VerificationLevel = 'Low';
+        if (baseVerificationLevel === '2') VerificationLevel = 'Medium';
+        if (baseVerificationLevel === '3') VerificationLevel = 'High';
+        if (baseVerificationLevel === '4') VerificationLevel = 'Very High';
 
         const embed = new EmbedBuilder()
-            .setTitle(`Server Info for ${name}`)
+            .setTitle('Server Info')
             .setThumbnail(icon)
-            .addFields({ Name: 'Server Name', value: `${name}`, inline: true })
-            .addFields({ Name: 'Server ID', value: `${id}`, inline: true })
-            .addFields({ Name: 'Server Owner', value: `<@${ownerId}>`, inline: true })
-            .addFields({ Name: 'Server Region', value: `${region}`, inline: true })
-            .addFields({ Name: 'Server Created At', value: `${createdAt}`, inline: true })
-            .addFields({ Name: 'Server Member Count', value: `${memberCount}`, inline: true })
-            .addFields({ Name: 'Server Verification Level', value: `${baseVerificationLevel}`, inline: true })
-            .addFields({ Name: 'Server Roles', value: `${roles}`, inline: true })
-            .addFields({ Name: 'Server Emojis', value: `${emojies}`, inline: true })
-            .addFields({ Name: 'Server Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true })
+            .addFields({ name: 'Server Name', value: `${name}`, inline: false })
+            .addFields({ name: 'Server ID', value: `${id}`, inline: false })
+            .addFields({ name: 'Owner', value: `<@${ownerId}>`, inline: false })
+            .addFields({ name: 'Region', value: `${region}`, inline: false })
+            .addFields({ name: 'Created At', value: `<t:${parseInt(createdAt / 1000)}:R>`, inline: false })
+            .addFields({ name: 'Member Count', value: `${memberCount}`, inline: false })
+            .addFields({ name: 'Verification Level', value: `${VerificationLevel}`, inline: false })
+            .addFields({ name: 'Roles', value: `${roles}`, inline: false })
+            .addFields({ name: 'Emojis', value: `${emojies}`, inline: false })
+            .addFields({ name: 'Server Boosts', value: `${guild.premiumSubscriptionCount}`, inline: false })
             .setColor([255, 255, 255])
-            .setFooter(`Requested by ${interaction.user.tag}`, interaction.user.avatarURL({ dynamic: true }))
+            .setFooter({
+                text: interaction.user.tag,
+                iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+            })
             .setTimestamp(Date.now())
-            .setAuthor(`${interaction.user.tag}`, interaction.user.avatarURL({ dynamic: true }));
+            .setAuthor({ name: name, iconURL: icon });
 
         await interaction.reply({ embeds: [embed] });
     },
