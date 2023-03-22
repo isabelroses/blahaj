@@ -7,14 +7,13 @@ module.exports = {
     async execute(interaction) {
 
         const { guild } = interaction;
-        const { members } = guild;
         const { name, ownerId, createdAt, region, memberCount } = guild;
         const icon = guild.iconURL({ dynamic: true });
-        const { roles } = guild.roles.cache.size;
-        const { emojies } = guild.emojis.cache.size;
+        const roles = guild.roles.cache.size;
+        const emojies = guild.emojis.cache.size;
         const id = guild.id;
 
-        let baseVerificationLevel = guild.verificationLevel;
+        let baseVerificationLevel = guild.VerificationLevel;
         let VerificationLevel;
 
         if (baseVerificationLevel === '0') VerificationLevel = 'None';
