@@ -7,7 +7,7 @@ module.exports = {
     async execute(interaction) {
 
         const { guild } = interaction;
-        const { members, name, ownerId, createdAt, region, memberCount } = guild;
+        const { name, ownerId, createdAt, region, memberCount } = guild;
         const icon = guild.iconURL({ dynamic: true });
         const roles = guild.roles.cache.size;
         const emojies = guild.emojis.cache.size;
