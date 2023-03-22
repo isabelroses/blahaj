@@ -1,17 +1,12 @@
 require('dotenv').config();
-const { token } = process.env;
 const { Client, Collection, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
 
 
 const client = new Client({ intents: GatewayIntentBits.Guilds });
 client.commands = new Collection();
-client.comamndArray = [];
+client.commandArray = [];
 client.buttons = new Collection();
-
-client.on('ready', () => {
-    console.log(`Logged in as ${client.user.tag}!`);
-});
 
 const functionFolders = fs.readdirSync('./src/functions');
 for (const folder of functionFolders) {
@@ -19,7 +14,6 @@ for (const folder of functionFolders) {
     for (const file of functionFiles) require(`./functions/${folder}/${file}`)(client);
 }
 
-client.handleCommands();
 client.handleComponents();
 client.handleEvents();
-client.login(token);
+client.login(process.env.token);
