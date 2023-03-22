@@ -1,6 +1,5 @@
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
-require('dotenv').config();
 const fs = require('fs');
 
 module.exports = (client) => {
@@ -15,15 +14,14 @@ module.exports = (client) => {
                 comamndArray.push(command.data.toJSON());
             }
         }
-        const guild_ids = client.guilds.cache.map(guild => guild.id);
+        const guild_ids = ['762413705383641158', '979416758538600528'];
         const rest = new REST({ version: '10' }).setToken(process.env.token);
         try {
             console.log('Started refreshing application (/) commands.');
-            for (const guild_id of guild_ids) {
-                await rest.put(
-                    Routes.applicationGuildCommands(process.env.client_id, guild_id),
-                    { body: comamndArray },
-                ).then(() => console.log(`Successfully reloaded application (/) commands for guild ${guild_id}.`)).catch(console.error);
+            for (const guildId of guild_ids) {
+                await rest.put(Routes.applicationGuildCommands(process.env.client_id, guildId),
+                    { body: client.comamndArray }
+                ).then(() => console.log('Successfully updated commands for guild ' + guildId)).catch(console.error);
             }
         } catch (error) {
             console.error(error);
