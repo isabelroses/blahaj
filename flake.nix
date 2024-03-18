@@ -20,7 +20,5 @@
     devShells = forEachSystem (system: {
       default = pkgsForEach.${system}.callPackage ./shell.nix {};
     });
-
-    nixosModules.default = import ./module.nix self;
   };
 }
