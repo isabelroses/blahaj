@@ -2,6 +2,7 @@
   eslint_d,
   prettierd,
   callPackage,
+  nodejs-slim,
   writeShellScriptBin,
 }: let
   mainPkg = callPackage ./default.nix {};
@@ -12,6 +13,7 @@ in
       [
         eslint_d
         prettierd
+        nodejs-slim
         (mkNpxAlias "tsc")
         (mkNpxAlias "tsserver")
       ]
