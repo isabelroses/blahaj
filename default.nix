@@ -7,5 +7,5 @@ buildNpmPackage {
 
   dontNpmBuild = true;
 
-  npmDepsHash = "sha256-mRmu2UIJTWj4d/UypUAM4+3Q8cbuVpazMuv4b21Yxho=";
+  npmDepsHash = "sha256-hjExjokjK3HZssWOkARDJY1m0+SxsQsxT2WaoBYqqe8=";
 }
