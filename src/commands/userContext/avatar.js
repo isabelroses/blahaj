@@ -4,7 +4,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('avatar')
         .setDescription('Replies with your avatar!')
-        .addUserOption(option => option.setName('target').setDescription('The user\'s avatar to show')),
+        .addUserOption(option => option.setName('target').setDescription('The user\'s avatar to show').setRequired(false)),
     async execute(interaction) {
         const user = interaction.options.getUser('target');
         if (!user) {
