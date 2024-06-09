@@ -1,0 +1,30 @@
+name: Test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/**"
+      - "*.nix"
+      - "*.toml"
+
+jobs:
+  check-flake:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lix
+        run: |
+          curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm
+          echo "trusted-users = root worker" | sudo tee -a /etc/nix/nix.conf
+          echo "experimental-features = nix-command flakes" | sudo tee -a /etc/nix/nix.conf
+          sudo systemctl restart nix-daemon
+
+      - name: Nix Magic Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check Flake
+        run: nix build -L .
