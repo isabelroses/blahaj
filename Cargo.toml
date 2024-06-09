@@ -11,11 +11,15 @@ keywords = ["discord", "bot", "serenity"]
 edition = "2021"
 
 [dependencies]
-dotenv = "0.15.0"
-poise = "0.6.1"
-serenity = "0.12.2"
-humantime = "2.1.0"
 color-eyre = "0.6.3"
-tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
+dotenv = "0.15.0"
+humantime = "2.1.0"
+poise = "0.6.1"
 regex = "1.10.5"
 reqwest = "0.12.4"
+serenity = "0.12.2"
+tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
