@@ -8,8 +8,8 @@ pub async fn avatar(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<serenity::User>,
 ) -> Result<()> {
-    let u = user.as_ref().unwrap_or_else(|| ctx.author());
-    let av = u.avatar_url().expect("Could not get avatar URL");
-    ctx.say(av).await?;
+    let user = user.as_ref().unwrap_or_else(|| ctx.author());
+    let avatar = user.avatar_url().expect("Could not get avatar URL");
+    ctx.say(avatar).await?;
     Ok(())
 }
