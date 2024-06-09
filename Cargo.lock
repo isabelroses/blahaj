@@ -114,6 +114,7 @@ dependencies = [
  "dotenv",
  "humantime",
  "poise",
+ "regex",
  "serenity",
  "tokio",
 ]

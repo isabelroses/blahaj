@@ -26,9 +26,10 @@ async fn main() -> Result<()> {
 
     let opts = poise::FrameworkOptions {
         commands: vec![
-            commands::avatar::avatar(),
-            commands::bot::botinfo(),
             commands::ping::ping(),
+            commands::bot::botinfo(),
+            commands::avatar::avatar(),
+            commands::kittysay::kittysay(),
         ],
         event_handler: |ctx, event, _, data| {
             Box::pin(async move {
@@ -54,6 +55,7 @@ async fn main() -> Result<()> {
                 serenity::GuildId::new(guild_id)
                     .set_commands(ctx, commands)
                     .await?;
+
                 Ok(Data {})
             })
         })
