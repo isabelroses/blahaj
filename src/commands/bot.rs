@@ -6,7 +6,7 @@ use std::env;
 /// Displays information about the bot
 #[poise::command(slash_command)]
 pub async fn botinfo(ctx: Context<'_>) -> Result<()> {
-    let rev = env::var("BUILD_REV").unwrap_or_else(|_| "unknown".to_string());
+    let rev = env::var("BUILD_REV").unwrap_or("unknown".to_string());
 
     let embed = CreateReply::default().embed(
         serenity::CreateEmbed::default()
