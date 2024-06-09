@@ -1,11 +1,18 @@
-{buildNpmPackage}:
-buildNpmPackage {
+{ lib, rustPlatform }:
+let
+  p = (lib.importTOML ./Cargo.toml).package;
+in
+rustPlatform.buildRustPackage {
   pname = "blahaj";
-  version = "0.1.0";
+  inherit (p) version;
 
   src = ./.;
+  cargoLock.lockFile = ./Cargo.lock;
 
-  dontNpmBuild = true;
-
-  npmDepsHash = "sha256-hjExjokjK3HZssWOkARDJY1m0+SxsQsxT2WaoBYqqe8=";
+  meta = {
+    inherit (p) description homepage;
+    license = lib.licenses.mit;
+    maintainers = with lib.maintainers; [ isabelroses ];
+    mainProgram = "blahaj";
+  };
 }

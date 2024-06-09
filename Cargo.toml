@@ -1,0 +1,11 @@
+[package]
+name = "blahaj"
+version = "0.0.1"
+license = "MIT"
+authors = ["Isabel Roses <isabel@isabelroses.com>"]
+description = "the resident discord bot of :3"
+readme = "README.md"
+homepage = "https://github.com/isabelroses/blahaj"
+repository = "https://github.com/isabelroses/blahaj"
+keywords = ["discord", "bot", "serenity"]
+edition = "2021"
