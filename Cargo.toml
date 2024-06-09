@@ -18,3 +18,5 @@ humantime = "2.1.0"
 color-eyre = "0.6.3"
 tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
 regex = "1.10.5"
+reqwest = "0.12.4"
+lazy_static = "1.4.0"
