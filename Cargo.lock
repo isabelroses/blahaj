@@ -119,7 +119,6 @@ dependencies = [
  "color-eyre",
  "dotenv",
  "humantime",
- "lazy_static",
  "poise",
  "regex",
  "reqwest 0.12.4",
