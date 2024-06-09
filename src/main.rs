@@ -14,8 +14,6 @@ pub type Context<'a> = poise::Context<'a, Data, Report>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
-
     // Load the .env file
     dotenv().ok();
 
