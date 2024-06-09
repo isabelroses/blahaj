@@ -19,7 +19,7 @@
     {
       packages = forAllSystems (pkgs: rec {
         default = blahaj;
-        blahaj = pkgs.callPackage ./default.nix { inherit (self) rev; };
+        blahaj = pkgs.callPackage ./default.nix { rev = self.dirtyRev or self.rev; };
       });
 
       devShells = forAllSystems (pkgs: {
