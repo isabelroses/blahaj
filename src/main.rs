@@ -28,7 +28,8 @@ async fn main() -> Result<()> {
         commands: vec![
             commands::ping::ping(),
             commands::bot::botinfo(),
-            commands::avatar::avatar(),
+            commands::user::whois::whois(),
+            commands::user::avatar::avatar(),
             commands::kittysay::kittysay(),
         ],
         event_handler: |ctx, event, _, data| {
