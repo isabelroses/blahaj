@@ -4,7 +4,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/";
 
   outputs =
-    { nixpkgs, ... }:
+    { self, nixpkgs }:
     let
       systems = [
         "x86_64-linux"
@@ -19,7 +19,7 @@
     {
       packages = forAllSystems (pkgs: rec {
         default = blahaj;
-        blahaj = pkgs.callPackage ./default.nix { };
+        blahaj = pkgs.callPackage ./default.nix { inherit (self) rev; };
       });
 
       devShells = forAllSystems (pkgs: {
