@@ -15,7 +15,7 @@ pub async fn whois(
         serenity::CreateEmbed::default()
             .title(&user.name)
             .thumbnail(user.avatar_url().expect("avatar failed"))
-            .color(0xffffff)
+            .color(0x00ff_ffff)
             .field("ID", user.id.to_string(), false)
             .field("Username", &user.name, false)
             .field("Created at", user.created_at().to_string(), false)

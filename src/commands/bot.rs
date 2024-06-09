@@ -12,7 +12,7 @@ pub async fn botinfo(ctx: Context<'_>) -> Result<()> {
         serenity::CreateEmbed::default()
             .title("Bot Info")
             //.thumbnail(bot.avatar_url().expect("avatar failed"))
-            .color(0xffffff)
+            .color(0x00ff_ffff)
             .field("Git rev", rev, false)
             .field("Bot ID", "1087418361283092510", false),
         //.field("Created at", bot.user.created_at().to_string(), false)
