@@ -1,9 +1,10 @@
 {
   clippy,
   rustfmt,
+  kittysay,
+  cargo-shear,
   callPackage,
   rust-analyzer,
-  kittysay,
 }:
 let
   mainPkg = callPackage ./default.nix { };
@@ -14,6 +15,7 @@ mainPkg.overrideAttrs (oa: {
     clippy
     rustfmt
     rust-analyzer
+    cargo-shear
 
     # runtime things for testing
     kittysay
