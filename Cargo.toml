@@ -1,6 +1,6 @@
 [package]
 name = "blahaj"
-version = "0.0.1"
+version = "0.2.0"
 license = "MIT"
 authors = ["Isabel Roses <isabel@isabelroses.com>"]
 description = "the resident discord bot of :3"
@@ -9,3 +9,13 @@ homepage = "https://github.com/isabelroses/blahaj"
 repository = "https://github.com/isabelroses/blahaj"
 keywords = ["discord", "bot", "serenity"]
 edition = "2021"
+
+[dependencies]
+dotenv = "0.15.0"
+poise = "0.6.1"
+serenity = "0.12.2"
+humantime = "2.1.0"
+color-eyre = "0.6.3"
+tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
+env_logger = "0.11.3"
+log = "0.4.21"
