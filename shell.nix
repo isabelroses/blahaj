@@ -1,26 +1,17 @@
 {
-  eslint_d,
-  prettierd,
+  clippy,
+  rustfmt,
   callPackage,
-  nodejs-slim,
-  writeShellScriptBin,
-}: let
-  mainPkg = callPackage ./default.nix {};
-  mkNpxAlias = name: writeShellScriptBin name "npx ${name} \"$@\"";
+  rust-analyzer,
+}:
+let
+  mainPkg = callPackage ./default.nix { };
 in
-  mainPkg.overrideAttrs (oa: {
-    nativeBuildInputs =
-      [
-        eslint_d
-        prettierd
-        nodejs-slim
-        (mkNpxAlias "tsc")
-        (mkNpxAlias "tsserver")
-      ]
-      ++ (oa.nativeBuildInputs or []);
-
-    shellHook = ''
-      eslint_d start # start eslint daemon
-      eslint_d status # inform user about eslint daemon status
-    '';
-  })
+mainPkg.overrideAttrs (oa: {
+  nativeBuildInputs = [
+    # Additional rust tooling
+    clippy
+    rustfmt
+    rust-analyzer
+  ] ++ (oa.nativeBuildInputs or [ ]);
+})

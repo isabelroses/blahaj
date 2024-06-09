@@ -1,24 +1,29 @@
 {
   description = "Blahaj";
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
-  };
 
-  outputs = {
-    self,
-    nixpkgs,
-  }: let
-    systems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
-    forEachSystem = nixpkgs.lib.genAttrs systems;
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/";
 
-    pkgsForEach = nixpkgs.legacyPackages;
-  in {
-    packages = forEachSystem (system: {
-      default = pkgsForEach.${system}.callPackage ./default.nix {};
-    });
+  outputs =
+    { nixpkgs, ... }:
+    let
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
 
-    devShells = forEachSystem (system: {
-      default = pkgsForEach.${system}.callPackage ./shell.nix {};
-    });
-  };
+      forAllSystems =
+        function: nixpkgs.lib.genAttrs systems (system: function nixpkgs.legacyPackages.${system});
+    in
+    {
+      packages = forAllSystems (pkgs: rec {
+        default = blahaj;
+        blahaj = pkgs.callPackage ./default.nix { };
+      });
+
+      devShells = forAllSystems (pkgs: {
+        default = pkgs.callPackage ./shell.nix { };
+      });
+    };
 }
