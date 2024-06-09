@@ -3,6 +3,7 @@
   rustfmt,
   callPackage,
   rust-analyzer,
+  kittysay,
 }:
 let
   mainPkg = callPackage ./default.nix { };
@@ -13,5 +14,8 @@ mainPkg.overrideAttrs (oa: {
     clippy
     rustfmt
     rust-analyzer
+
+    # runtime things for testing
+    kittysay
   ] ++ (oa.nativeBuildInputs or [ ]);
 })
