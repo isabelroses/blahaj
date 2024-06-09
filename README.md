@@ -3,7 +3,7 @@
   Blåhaj
 </h1>
 
-Blahaj a blazzingly fasy discord bot written in rust. Rocketship emoji.
+Blahaj a blazingly fasy discord bot written in rust. Rocketship emoji.
 
 ## Installation
 
