@@ -11,6 +11,7 @@ keywords = ["discord", "bot", "serenity"]
 edition = "2021"
 
 [dependencies]
+bottomify = "1.2.0"
 color-eyre = "0.6.3"
 dotenv = "0.15.0"
 humantime = "2.1.0"

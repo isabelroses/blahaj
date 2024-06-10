@@ -26,12 +26,17 @@ async fn main() -> Result<()> {
 
     let opts = poise::FrameworkOptions {
         commands: vec![
-            commands::ping::ping(),
-            commands::bot::botinfo(),
+            // user commands
             commands::user::whois::whois(),
             commands::user::avatar::avatar(),
-            commands::kittysay::kittysay(),
-            commands::dice::roll(),
+            // bot commands
+            commands::bot::ping::ping(),
+            commands::bot::bot::botinfo(),
+            // fun commands
+            commands::fun::dice::roll(),
+            commands::fun::kittysay::kittysay(),
+            commands::fun::bottom::topify(),
+            commands::fun::bottom::bottomify(),
         ],
         event_handler: |ctx, event, _, data| {
             Box::pin(async move {
