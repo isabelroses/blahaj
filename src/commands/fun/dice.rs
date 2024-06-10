@@ -10,6 +10,6 @@ pub async fn roll(
 ) -> Result<()> {
     let sides = sides.unwrap_or(6);
     let roll = rand::thread_rng().gen_range(1..=sides);
-    ctx.say(format!("You rolled a **{}**", roll)).await?;
+    ctx.say(format!("You rolled a **{roll}**")).await?;
     Ok(())
 }

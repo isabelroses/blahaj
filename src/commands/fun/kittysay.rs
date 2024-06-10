@@ -7,8 +7,6 @@ use crate::Context;
 /// Make the kitty say something :3
 #[poise::command(slash_command, guild_only)]
 pub async fn kittysay(ctx: Context<'_>, #[description = "speak"] input: String) -> Result<()> {
-    print!("Please enter your message: ");
-
     let re = Regex::new(r"[^:a-zA-Z0-9\s]").unwrap();
     let sanitized_input = re.replace_all(&input, "").to_string();
 

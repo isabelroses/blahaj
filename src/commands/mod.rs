@@ -1,5 +1,3 @@
 pub mod bot;
-pub mod kittysay;
-pub mod ping;
+pub mod fun;
 pub mod user;
-pub mod dice;
