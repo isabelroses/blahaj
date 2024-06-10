@@ -8,7 +8,7 @@ use crate::Context;
 pub async fn bottomify(ctx: Context<'_>, #[description = "text"] input: String) -> Result<()> {
     let out = bottom::encode_string(&input);
 
-    ctx.say(out).await?;
+    ctx.say(format!("```{out}```")).await?;
     Ok(())
 }
 
@@ -17,6 +17,11 @@ pub async fn bottomify(ctx: Context<'_>, #[description = "text"] input: String) 
 pub async fn topify(ctx: Context<'_>, #[description = "text"] input: String) -> Result<()> {
     let out = bottom::decode_string(&input);
 
-    ctx.say(out.expect("failed to translate")).await?;
+    if out.is_ok() {
+        ctx.say(out?).await?;
+    } else {
+        ctx.say("I couldn't decode that message.").await?;
+    }
+
     Ok(())
 }
