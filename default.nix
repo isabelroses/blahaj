@@ -5,8 +5,6 @@
   openssl,
   darwin,
   pkg-config,
-  kittysay,
-  makeWrapper,
   rev ? "dirty",
 }:
 let
@@ -30,10 +28,7 @@ rustPlatform.buildRustPackage {
   cargoLock.lockFile = ./Cargo.lock;
 
   buildInputs =
-    [
-      openssl
-      makeWrapper
-    ]
+    [ openssl ]
     ++ lib.optionals stdenv.isDarwin (
       with darwin.apple_sdk.frameworks;
       [
@@ -48,10 +43,6 @@ rustPlatform.buildRustPackage {
   env = {
     BUILD_REV = rev;
   };
-
-  postInstall = ''
-    wrapProgram "$out/bin/blahaj" --prefix PATH : "${lib.makeBinPath [ kittysay ]}"
-  '';
 
   meta = {
     inherit (p) description homepage;

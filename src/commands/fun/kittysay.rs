@@ -1,21 +1,22 @@
 use color_eyre::eyre::Result;
-use regex::Regex;
-use std::process::Command;
+use kittysay::{print, FormatOptions};
 
 use crate::Context;
 
 /// Make the kitty say something :3
 #[poise::command(slash_command, guild_only)]
-pub async fn kittysay(ctx: Context<'_>, #[description = "speak"] input: String) -> Result<()> {
-    let re = Regex::new(r"[^:a-zA-Z0-9\s]").unwrap();
-    let sanitized_input = re.replace_all(&input, "").to_string();
+pub async fn kittysay(
+    ctx: Context<'_>,
+    #[description = "say"] input: String,
+    #[description = "think"] think: Option<bool>,
+) -> Result<()> {
+    let opts = FormatOptions {
+        think: think.unwrap_or(false),
+        width: 45,
+    };
 
-    let output = Command::new("kittysay")
-        .arg(&sanitized_input)
-        .output()
-        .expect("Failed to execute kittysay");
+    let output = print(&input, &opts);
 
-    ctx.say(format!("```{}```", String::from_utf8_lossy(&output.stdout)))
-        .await?;
+    ctx.say(format!("```{output}```")).await?;
     Ok(())
 }

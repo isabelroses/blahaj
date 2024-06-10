@@ -1,7 +1,6 @@
 {
   clippy,
   rustfmt,
-  kittysay,
   cargo-shear,
   callPackage,
   rust-analyzer,
@@ -16,8 +15,5 @@ mainPkg.overrideAttrs (oa: {
     rustfmt
     rust-analyzer
     cargo-shear
-
-    # runtime things for testing
-    kittysay
   ] ++ (oa.nativeBuildInputs or [ ]);
 })
