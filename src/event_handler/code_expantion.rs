@@ -44,19 +44,17 @@ async fn github_compatable_embeds(msg: String) -> Result<Vec<serenity::CreateEmb
             .and_then(|end| end.as_str().parse::<usize>().ok())
             .unwrap_or(start);
 
-        let raw_url;
-        if host == "github.com" {
-            raw_url = format!("https://raw.githubusercontent.com/{repo}/{reference}/{file}");
+        let raw_url = if host == "github.com" {
+            format!("https://raw.githubusercontent.com/{repo}/{reference}/{file}")
         } else {
-            let refer;
-            if reference.len() == 40 {
-                refer = format!("commit/{reference}");
+            let refer = if reference.len() == 40 {
+                format!("commit/{reference}")
             } else {
-                refer = format!("branch/{reference}");
-            }
-            // we assume its gitea/forgejo
-            raw_url = format!("https://{host}/{repo}/raw/{refer}/{file}");
-        }
+                format!("branch/{reference}")
+            };
+            format!("https://{host}/{repo}/raw/{refer}/{file}")
+        };
+
         let response = Client::new().get(&raw_url).send().await;
 
         if let Ok(response) = response {
