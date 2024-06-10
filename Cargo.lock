@@ -120,6 +120,7 @@ dependencies = [
  "dotenv",
  "humantime",
  "poise",
+ "rand",
  "regex",
  "reqwest 0.12.4",
  "serenity",

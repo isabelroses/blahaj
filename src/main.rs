@@ -31,6 +31,7 @@ async fn main() -> Result<()> {
             commands::user::whois::whois(),
             commands::user::avatar::avatar(),
             commands::kittysay::kittysay(),
+            commands::dice::roll(),
         ],
         event_handler: |ctx, event, _, data| {
             Box::pin(async move {
