@@ -1,6 +1,5 @@
 use crate::Context;
 use color_eyre::eyre::Result;
-use poise::{serenity_prelude as serenity, CreateReply};
 use rand::Rng;
 
 /// Rolls dice based on given # of sides
