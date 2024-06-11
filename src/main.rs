@@ -33,6 +33,7 @@ async fn main() -> Result<()> {
             commands::bot::ping::ping(),
             commands::bot::bot::botinfo(),
             // fun commands
+            commands::fun::nix::nix(),
             commands::fun::dice::roll(),
             commands::fun::kittysay::kittysay(),
             commands::fun::bottom::topify(),
