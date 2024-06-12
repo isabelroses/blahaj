@@ -15,10 +15,10 @@ pub async fn roll(
     Ok(())
 }
 
-/// Rolls dice based on given # of sides
+/// Select a random person to win a raffle
 #[poise::command(slash_command)]
 pub async fn raffle(ctx: Context<'_>) -> Result<()> {
-    let mut memeberid: UserId;
+    let mut memeberid: UserId = UserId::new(1);
 
     let members = ctx
         .guild_id()
@@ -36,11 +36,11 @@ pub async fn raffle(ctx: Context<'_>) -> Result<()> {
             find_member = presence.status == OnlineStatus::Online
                 || presence.status == OnlineStatus::Idle
                     && !memeber.bot
-                    && !(memeberid == ctx.author().id);
+                    && memeberid != ctx.author().id;
         }
     }
 
-    if Some(memeberid).is_some() {
+    if Some(memeberid).is_some() && memeberid != UserId::new(1) {
         ctx.say(format!("<@{memeberid}> has won the raffle"))
             .await?;
     }
