@@ -1,4 +1,4 @@
 pub mod bottom;
-pub mod dice;
+pub mod chance;
 pub mod kittysay;
 pub mod nix;
