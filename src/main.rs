@@ -22,7 +22,10 @@ async fn main() -> Result<()> {
 
     // Configure the client with your Discord bot token in the environment.
     let token = env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN to be set");
-    let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
+    let intents = GatewayIntents::non_privileged()
+        | GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILD_PRESENCES
+        | GatewayIntents::GUILD_MEMBERS;
 
     let opts = poise::FrameworkOptions {
         commands: vec![
@@ -34,7 +37,8 @@ async fn main() -> Result<()> {
             commands::bot::bot::botinfo(),
             // fun commands
             commands::fun::nix::nix(),
-            commands::fun::dice::roll(),
+            commands::fun::chance::roll(),
+            commands::fun::chance::raffle(),
             commands::fun::kittysay::kittysay(),
             commands::fun::bottom::topify(),
             commands::fun::bottom::bottomify(),
