@@ -11,6 +11,9 @@ pub async fn whois(
     let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let membership = ctx.guild_id().unwrap().member(ctx.http(), user.id).await?;
 
+    let created_at = user.created_at().unix_timestamp();
+    let joined_at = membership.joined_at.unwrap().unix_timestamp();
+
     let embed = CreateReply::default().embed(
         serenity::CreateEmbed::default()
             .title(&user.name)
@@ -18,12 +21,8 @@ pub async fn whois(
             .color(0x00ff_ffff)
             .field("ID", user.id.to_string(), false)
             .field("Username", &user.name, false)
-            .field("Created at", user.created_at().to_string(), false)
-            .field(
-                "Joined at",
-                membership.joined_at.expect("joined_at failed").to_string(),
-                false,
-            )
+            .field("Created at", format!("<t:{created_at}:R>"), false)
+            .field("Joined at", format!("<t:{joined_at}:R>"), false)
             .field(
                 "Roles",
                 membership
