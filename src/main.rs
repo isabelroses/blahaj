@@ -35,6 +35,8 @@ async fn main() -> Result<()> {
             // bot commands
             commands::bot::ping::ping(),
             commands::bot::bot::botinfo(),
+            // misc commands
+            commands::misc::nixpkgs::nixpkgs(),
             // fun commands
             commands::fun::nix::nix(),
             commands::fun::chance::roll(),

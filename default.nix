@@ -25,7 +25,12 @@ rustPlatform.buildRustPackage {
     );
   };
 
-  cargoLock.lockFile = ./Cargo.lock;
+  cargoLock = {
+    lockFile = ./Cargo.lock;
+    outputHashes = {
+      "git-tracker-0.2.0" = "sha256-ekji25NfXsMrAQE8uz24DkFcGfba1U2SLTEZE/atpss=";
+    };
+  };
 
   buildInputs =
     [ openssl ]

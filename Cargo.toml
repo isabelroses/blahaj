@@ -19,9 +19,22 @@ kittysay = "0.8.0"
 poise = "0.6.1"
 rand = "0.8.5"
 regex = "1.10.5"
-reqwest = "0.12.4"
 serenity = "0.12.2"
-tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
+
+[dependencies.serde]
+version = "1.0.203"
+features = ["derive"]
+
+[dependencies.reqwest ]
+version = "0.12.4"
+features = ["json"]
+
+[dependencies.tokio]
+version = "1.38.0"
+features = ["macros", "rt-multi-thread"]
+
+[dependencies.git-tracker]
+git = "https://github.com/getchoo/nixpkgs-tracker-bot"
 
 [lints.clippy]
 all = "warn"
