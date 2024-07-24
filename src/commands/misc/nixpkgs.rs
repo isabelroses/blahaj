@@ -1,7 +1,6 @@
 use color_eyre::eyre::Result;
 use git_tracker::Tracker;
 use poise::{serenity_prelude as serenity, CreateReply};
-use reqwest;
 use serde::Deserialize;
 use std::env;
 
@@ -23,10 +22,12 @@ pub async fn nixpkgs(
     let github_token = env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
     let tracker = Tracker::from_path(&nixpkgs_path)?;
 
+	let client = &ctx.data().client;
+
     // find out what commit our PR was merged in
     let Some(commit_sha) = ({
         let url = format!("https://api.github.com/repos/nixos/nixpkgs/pulls/{pr}");
-        let resp = reqwest::Client::new()
+        let resp = client
             .get(&url)
             .header("User-Agent", "blahaj")
             .header("Authorization", format!("Bearer {github_token}"))

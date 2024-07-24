@@ -2,13 +2,16 @@ mod commands;
 mod event_handler;
 
 use dotenv::dotenv;
+use reqwest::Client;
 use std::env;
 
 use color_eyre::eyre::{Report, Result};
 use poise::serenity_prelude::{self as serenity, ActivityData, GatewayIntents};
 
 #[derive(Debug)]
-pub struct Data {} // User data, which is stored and accessible in all command invocations
+pub struct Data { // User data, which is stored and accessible in all command invocations
+	client: Client,
+} 
 
 pub type Context<'a> = poise::Context<'a, Data, Report>;
 
@@ -45,12 +48,7 @@ async fn main() -> Result<()> {
             commands::fun::bottom::topify(),
             commands::fun::bottom::bottomify(),
         ],
-        event_handler: |ctx, event, _, data| {
-            Box::pin(async move {
-                crate::event_handler::event_handler(ctx, event, data).await?;
-                Ok(())
-            })
-        },
+        event_handler: |ctx, event, _, data| Box::pin(crate::event_handler::event_handler(ctx, event, data)),
         ..Default::default()
     };
 
@@ -70,7 +68,11 @@ async fn main() -> Result<()> {
                     .set_commands(ctx, commands)
                     .await?;
 
-                Ok(Data {})
+                Ok(Data {
+					client: Client::builder()
+						.user_agent("blahaj")
+						.build()?,
+				})
             })
         })
         .options(opts)
