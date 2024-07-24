@@ -1,6 +1,6 @@
 use color_eyre::eyre::Result;
 use git_tracker::Tracker;
-use poise::{serenity_prelude as serenity, CreateReply};
+use poise::{serenity_prelude::CreateEmbed, CreateReply};
 use serde::Deserialize;
 use std::env;
 
@@ -22,7 +22,7 @@ pub async fn nixpkgs(
     let github_token = env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
     let tracker = Tracker::from_path(&nixpkgs_path)?;
 
-	let client = &ctx.data().client;
+    let client = &ctx.data().client;
 
     // find out what commit our PR was merged in
     let Some(commit_sha) = ({
@@ -72,7 +72,7 @@ pub async fn nixpkgs(
     };
 
     let embed = CreateReply::default().embed(
-        serenity::CreateEmbed::new()
+        CreateEmbed::new()
             .title(format!("Nixpkgs PR #{pr} Status"))
             .url(format!("{NIXPKGS_URL}/pull/{pr}"))
             .description(embed_description),

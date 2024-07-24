@@ -1,6 +1,6 @@
 use crate::Context;
 use color_eyre::eyre::Result;
-use poise::{serenity_prelude as serenity, CreateReply};
+use poise::{serenity_prelude::CreateEmbed, CreateReply};
 use std::env;
 
 /// Displays information about the bot
@@ -9,7 +9,7 @@ pub async fn botinfo(ctx: Context<'_>) -> Result<()> {
     let rev = env::var("BUILD_REV").unwrap_or("unknown".to_string());
 
     let embed = CreateReply::default().embed(
-        serenity::CreateEmbed::default()
+        CreateEmbed::default()
             .title("Bot Info")
             //.thumbnail(bot.avatar_url().expect("avatar failed"))
             .color(0x00ff_ffff)

@@ -1,12 +1,15 @@
 use crate::Context;
 use color_eyre::eyre::Result;
-use poise::{serenity_prelude as serenity, CreateReply};
+use poise::{
+    serenity_prelude::{CreateEmbed, User},
+    CreateReply,
+};
 
 /// Displays your or another user's info
 #[poise::command(slash_command)]
 pub async fn whois(
     ctx: Context<'_>,
-    #[description = "Selected user"] user: Option<serenity::User>,
+    #[description = "Selected user"] user: Option<User>,
 ) -> Result<()> {
     let user = user.as_ref().unwrap_or_else(|| ctx.author());
     let membership = ctx.guild_id().unwrap().member(ctx.http(), user.id).await?;
@@ -15,7 +18,7 @@ pub async fn whois(
     let joined_at = membership.joined_at.unwrap().unix_timestamp();
 
     let embed = CreateReply::default().embed(
-        serenity::CreateEmbed::default()
+        CreateEmbed::default()
             .title(&user.name)
             .thumbnail(user.avatar_url().expect("avatar failed"))
             .color(0x00ff_ffff)

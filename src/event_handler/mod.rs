@@ -11,7 +11,7 @@ pub async fn event_handler(ctx: &Context, event: &FullEvent, _data: &Data) -> Re
         println!("Logged in as {}", data_about_bot.user.name);
     }
 
-    code_expantion::handle(ctx, event).await?;
+	let client = &_data.client;
 
-    Ok(())
+    code_expantion::handle(ctx, event, client).await
 }
