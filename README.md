@@ -7,7 +7,7 @@ Blahaj a blazingly fast discord bot written in rust 🚀🚀.
 
 ## Installation
 
-I don't know use nix?
+I don't know, use nix?
 
 ## Thanks
 
