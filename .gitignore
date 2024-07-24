@@ -1,4 +1,4 @@
 .env
 vendor
-result
-result-*
+result*
+target
