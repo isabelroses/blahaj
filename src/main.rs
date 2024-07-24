@@ -55,18 +55,9 @@ async fn main() -> Result<()> {
     let framework = poise::Framework::builder()
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
-                let commands =
-                    poise::builtins::create_application_commands(&framework.options().commands);
-
-                let guild_id = env::var("GUILD_ID")
-                    .expect("Expected GUILD_ID to be set")
-                    .parse::<u64>()?;
-
                 ctx.set_activity(Some(ActivityData::custom("new bot, who dis?")));
 
-                serenity::GuildId::new(guild_id)
-                    .set_commands(ctx, commands)
-                    .await?;
+				poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
                 Ok(Data {
 					client: Client::builder()
