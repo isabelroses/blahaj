@@ -1,14 +1,14 @@
 // the logic here is pretty much ripped from https://github.com/uncenter/discord-forum-bot/blob/main/src/modules/expandGitHubLinks.ts
 // with some modifications so I can make it work on diffrent git hosts
 
-use color_eyre::eyre::{self, Result};
+use color_eyre::eyre::{eyre, Result};
 use poise::serenity_prelude::{Context, FullEvent};
 use regex::Regex;
 use reqwest::Client;
 
-pub async fn handle(ctx: &Context, event: &FullEvent) -> Result<()> {
+pub async fn handle(ctx: &Context, event: &FullEvent, client: &Client) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
-        let code_blocks = extract_code_blocks(new_message.content.clone()).await?;
+        let code_blocks = extract_code_blocks(new_message.content.clone(), client).await?;
 
         if !code_blocks.is_empty() {
             new_message
@@ -21,13 +21,22 @@ pub async fn handle(ctx: &Context, event: &FullEvent) -> Result<()> {
     Ok(())
 }
 
-async fn extract_code_blocks(msg: String) -> Result<Vec<String>> {
+async fn extract_code_blocks(msg: String, client: &Client) -> Result<Vec<String>> {
     let re = Regex::new(
-        r"https?://(?P<host>(git.*|codeberg\.org))/(?P<repo>[\w-]+/[\w.-]+)/(blob|(src/(commit|branch)))?/(?P<reference>\S+?)/(?P<file>\S+)#L(?P<start>\d+)(?:[~-]L?(?P<end>\d+)?)?",
+        r#"(?x)
+        https?://
+		(?P<host>
+			(git.*|codeberg\.org))		/
+		(?P<repo>		[\w-]+/[\w.-]+)	/
+		(blob|(src/(commit|branch)))?	/
+		(?P<reference>	\S+?)			/
+		(?P<file>		\S+)			#L
+		(?P<start>		\d+)
+		(?:[~-]L?(?P<end>\d+)?)?
+    "#,
     )?;
 
     let mut blocks: Vec<String> = Vec::new();
-    let client = Client::new();
 
     for caps in re.captures_iter(&msg) {
         let (host, repo, reference, file, start, end) = extract_url_components(&caps)?;
@@ -79,7 +88,7 @@ async fn fetch_code_block(
 ) -> Result<String> {
     let response = client.get(raw_url).send().await?;
     if !response.status().is_success() {
-        return Err(eyre::eyre!("Failed to fetch content from {}", raw_url));
+        return Err(eyre!("Failed to fetch content from {}", raw_url));
     }
 
     let text = response.text().await?;

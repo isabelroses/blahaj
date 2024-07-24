@@ -6,12 +6,13 @@ use reqwest::Client;
 use std::env;
 
 use color_eyre::eyre::{Report, Result};
-use poise::serenity_prelude::{self as serenity, ActivityData, GatewayIntents};
+use poise::serenity_prelude::{ActivityData, ClientBuilder, GatewayIntents};
 
 #[derive(Debug)]
-pub struct Data { // User data, which is stored and accessible in all command invocations
-	client: Client,
-} 
+// User data, which is stored and accessible in all command invocations
+pub struct Data {
+    client: Client,
+}
 
 pub type Context<'a> = poise::Context<'a, Data, Report>;
 
@@ -48,7 +49,9 @@ async fn main() -> Result<()> {
             commands::fun::bottom::topify(),
             commands::fun::bottom::bottomify(),
         ],
-        event_handler: |ctx, event, _, data| Box::pin(crate::event_handler::event_handler(ctx, event, data)),
+        event_handler: |ctx, event, _, data| {
+            Box::pin(crate::event_handler::event_handler(ctx, event, data))
+        },
         ..Default::default()
     };
 
@@ -57,19 +60,17 @@ async fn main() -> Result<()> {
             Box::pin(async move {
                 ctx.set_activity(Some(ActivityData::custom("new bot, who dis?")));
 
-				poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
                 Ok(Data {
-					client: Client::builder()
-						.user_agent("blahaj")
-						.build()?,
-				})
+                    client: Client::builder().user_agent("blahaj").build()?,
+                })
             })
         })
         .options(opts)
         .build();
 
-    let client = serenity::ClientBuilder::new(token, intents)
+    let client = ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
 
