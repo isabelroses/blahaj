@@ -29,6 +29,7 @@ struct _Crate {
 struct Crate {
     categories: Vec<String>,
     homepage: Option<String>,
+    repository: Option<String>,
     description: String,
     max_stable_version: String,
 }
@@ -75,10 +76,8 @@ pub async fn crates(ctx: Context<'_>, #[description = "crate"] crt: String) -> R
                 resp.c.max_stable_version
             ));
 
-            embed = embed
-                .description(resp.c.description)
-                .timestamp(Timestamp::parse(&version.updated_at)?)
-                .field(
+            if !resp.c.categories.is_empty() {
+                embed = embed.field(
                     "Categories",
                     resp.c
                         .categories
@@ -87,12 +86,18 @@ pub async fn crates(ctx: Context<'_>, #[description = "crate"] crt: String) -> R
                         .collect::<Vec<String>>()
                         .join(", "),
                     false,
-                )
-                .field(
-                    "Homepage",
-                    resp.c.homepage.unwrap_or_else(|| String::from("N/A")),
-                    true,
-                )
+                );
+            }
+
+            embed = match (resp.c.homepage, resp.c.repository) {
+                (Some(homepage), _) => embed.field("Homepage", homepage, true),
+                (None, Some(repository)) => embed.field("Repository", repository, true),
+                (None, None) => embed.field("Homepage", "N/A", true),
+            };
+
+            embed = embed
+                .description(resp.c.description)
+                .timestamp(Timestamp::parse(&version.updated_at)?)
                 .field(
                     "License",
                     version
