@@ -23,17 +23,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, client: &Client) -> Result
 
 async fn extract_code_blocks(msg: String, client: &Client) -> Result<Vec<String>> {
     let re = Regex::new(
-        r#"(?x)
-        https?://
-		(?P<host>
-			(git.*|codeberg\.org))		/
-		(?P<repo>		[\w-]+/[\w.-]+)	/
-		(blob|(src/(commit|branch)))?	/
-		(?P<reference>	\S+?)			/
-		(?P<file>		\S+)			#L
-		(?P<start>		\d+)
-		(?:[~-]L?(?P<end>\d+)?)?
-    "#,
+        r"https?://(?P<host>(git.*|codeberg\.org))/(?P<repo>[\w-]+/[\w.-]+)/(blob|(src/(commit|branch)))?/(?P<reference>\S+?)/(?P<file>\S+)#L(?P<start>\d+)(?:[~-]L?(?P<end>\d+)?)?",
     )?;
 
     let mut blocks: Vec<String> = Vec::new();
