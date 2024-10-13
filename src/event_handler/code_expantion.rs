@@ -33,7 +33,7 @@ async fn extract_code_blocks(msg: String, client: &Client) -> Result<Vec<String>
 
         let raw_url = construct_raw_url(host, repo, reference, file);
 
-        if let Ok(code_block) = fetch_code_block(&client, &raw_url, start, end, file).await {
+        if let Ok(code_block) = fetch_code_block(client, &raw_url, start, end, file).await {
             blocks.push(code_block);
         }
     }
@@ -95,18 +95,15 @@ async fn fetch_code_block(
         .map_or("", remove_query_string)
         .to_lowercase();
 
-    Ok(format_code_block(language, content))
+    Ok(format_code_block(&language, &content))
 }
 
-fn format_code_block(language: String, content: String) -> String {
+fn format_code_block(language: &str, content: &str) -> String {
     if content.len() > 1950 {
         let truncated_content = content.lines().take(1950).collect::<Vec<&str>>().join("\n");
-        format!(
-            "```{}\n{}\n```\n... (lines not displayed)",
-            language, truncated_content
-        )
+        format!("```{language}\n{truncated_content}\n```\n... (lines not displayed)")
     } else {
-        format!("```{}\n{}\n```", language, content)
+        format!("```{language}\n{content}\n```")
     }
 }
 
