@@ -28,7 +28,7 @@ rustPlatform.buildRustPackage {
   cargoLock = {
     lockFile = ./Cargo.lock;
     outputHashes = {
-      "git-tracker-0.2.0" = "sha256-ekji25NfXsMrAQE8uz24DkFcGfba1U2SLTEZE/atpss=";
+      "git-tracker-0.2.0" = "sha256-ZOD/8Wjn7lNZjpiOLBwmYCcEe8tYmxxDMhhiWJViGws=";
     };
   };
 
