@@ -2,6 +2,7 @@ use color_eyre::eyre::Result;
 use poise::serenity_prelude::{Context, FullEvent};
 
 mod code_expantion;
+mod kitten;
 
 use crate::Data;
 
@@ -13,5 +14,8 @@ pub async fn event_handler(ctx: &Context, event: &FullEvent, data: &Data) -> Res
 
     let client = &data.client;
 
-    code_expantion::handle(ctx, event, client).await
+    code_expantion::handle(ctx, event, client).await?;
+    kitten::handle(ctx, event, client).await?;
+
+    Ok(())
 }
