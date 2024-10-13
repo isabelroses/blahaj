@@ -1,4 +1,3 @@
-use crate::Context as PoiseContext;
 use color_eyre::eyre::{eyre, Result};
 use poise::serenity_prelude::{Context, FullEvent};
 use reqwest::Client;
@@ -20,7 +19,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _client: &Client) -> Resul
                 if member
                     .roles
                     .iter()
-                    .filter(|role| is_pronouns_role(role))
+                    .filter(|role| is_pronouns_role(**role))
                     .count()
                     > 0
                 {
@@ -43,7 +42,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _client: &Client) -> Resul
             if member
                 .roles
                 .iter()
-                .filter(|role| is_pronouns_role(role))
+                .filter(|role| is_pronouns_role(**role))
                 .count()
                 == 0
             {
@@ -73,8 +72,7 @@ async fn warn_onboarding(ctx: &Context, user_id: &UserId) -> Result<(), color_ey
         .say(
             ctx,
             format!(
-                "Welcome to the server, @<{}>!\nPlease select your roles and pronouns from onboarding to get started.",
-                user_id
+                "Welcome to the server, <@{user_id}>!\nPlease select your roles and pronouns from onboarding to get started."
             ),
         )
         .await?;
@@ -88,9 +86,9 @@ async fn add_kitten_role(ctx: &Context, member: &Member) -> Result<()> {
         .map_err(|e| eyre!("Failed to add role: {}", e))
 }
 
-fn is_pronouns_role(role: &RoleId) -> bool {
-    *role == 1095084950107209728 // she/her
-        || *role == 1095085000241709217 // he/him
-        || *role == 1095085169381232770 // they/them
-        || *role == 1095085419265269922 // ask for pronouns
+fn is_pronouns_role(role: RoleId) -> bool {
+    role == 1095084950107209728 // she/her
+        || role == 1095085000241709217 // he/him
+        || role == 1095085169381232770 // they/them
+        || role == 1095085419265269922 // ask for pronouns
 }
