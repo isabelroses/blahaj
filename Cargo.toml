@@ -18,19 +18,19 @@ humantime = "2.1.0"
 kittysay = "0.8.0"
 poise = "0.6.1"
 rand = "0.8.5"
-regex = "1.10.5"
+regex = "1.11.0"
 serenity = "0.12.2"
 
 [dependencies.serde]
-version = "1.0.203"
+version = "1.0.210"
 features = ["derive"]
 
-[dependencies.reqwest ]
-version = "0.12.4"
+[dependencies.reqwest]
+version = "0.12.8"
 features = ["json"]
 
 [dependencies.tokio]
-version = "1.38.0"
+version = "1.40.0"
 features = ["macros", "rt-multi-thread"]
 
 [dependencies.git-tracker]
