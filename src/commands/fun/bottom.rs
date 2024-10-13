@@ -16,7 +16,7 @@ pub async fn bottomify(ctx: Context<'_>, #[description = "text"] input: String) 
 #[poise::command(slash_command, guild_only)]
 pub async fn topify(ctx: Context<'_>, #[description = "text"] input: String) -> Result<()> {
     const MAX_LEN: usize = 1994;
-    const WRAP: &'static str = "```";
+    const WRAP: &str = "```";
     let out = bottom::decode_string(&input);
 
     if let Ok(out) = out {
