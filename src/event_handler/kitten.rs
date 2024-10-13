@@ -13,6 +13,9 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _client: &Client) -> Resul
     } = event
     {
         if let Some(member) = new {
+            if member.user.bot {
+                return Ok(());
+            }
             // check if the user does not have the kitten role
             if !member.roles.iter().any(|role| *role == 1249814690486423612) {
                 // check if the user has the pronouns role
@@ -36,6 +39,9 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _client: &Client) -> Resul
             .as_mut()
             .to_owned();
         let member = Member::from(partial_member);
+        if member.user.bot {
+            return Ok(());
+        }
         // check if the user has the kitten role
         if member.roles.iter().any(|role| *role == 1249814690486423612) {
             // check if the user does not have pronouns selected
