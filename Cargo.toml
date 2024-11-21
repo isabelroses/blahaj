@@ -1,6 +1,6 @@
 [package]
 name = "blahaj"
-version = "0.2.0"
+version = "0.2.1"
 license = "MIT"
 authors = ["Isabel Roses <isabel@isabelroses.com>"]
 description = "the resident discord bot of :3"
@@ -16,6 +16,7 @@ color-eyre = "0.6.3"
 dotenv = "0.15.0"
 humantime = "2.1.0"
 kittysay = "0.8.0"
+nixpkgs-track = "0.1.0"
 poise = "0.6.1"
 rand = "0.8.5"
 regex = "1.11.0"
@@ -33,9 +34,7 @@ features = ["json"]
 version = "1.40.0"
 features = ["macros", "rt-multi-thread"]
 
-[dependencies.git-tracker]
-git = "https://github.com/getchoo/nixpkgs-tracker-bot"
-
 [lints.clippy]
 all = "warn"
 pedantic = "warn"
+unreadable_literal = { level = "allow", priority = 1 }
