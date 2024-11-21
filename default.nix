@@ -1,9 +1,7 @@
 {
   lib,
   rustPlatform,
-  stdenv,
   openssl,
-  darwin,
   pkg-config,
   rev ? "dirty",
 }:
@@ -25,24 +23,9 @@ rustPlatform.buildRustPackage {
     );
   };
 
-  cargoLock = {
-    lockFile = ./Cargo.lock;
-    outputHashes = {
-      "git-tracker-0.2.0" = "sha256-ZOD/8Wjn7lNZjpiOLBwmYCcEe8tYmxxDMhhiWJViGws=";
-    };
-  };
+  cargoLock.lockFile = ./Cargo.lock;
 
-  buildInputs =
-    [ openssl ]
-    ++ lib.optionals stdenv.isDarwin (
-      with darwin.apple_sdk.frameworks;
-      [
-        Security
-        CoreFoundation
-        SystemConfiguration
-      ]
-    );
-
+  buildInputs = [ openssl ];
   nativeBuildInputs = [ pkg-config ];
 
   env = {
