@@ -32,7 +32,8 @@ pub async fn nixpkgs(
     .await??;
 
     let Some(commit_sha) = pull_request.merge_commit_sha else {
-        println!("This pull request is very old. I can't track it!");
+        ctx.say("This pull request is very old. I can't track it!")
+            .await?;
         return Ok(());
     };
 
