@@ -38,8 +38,7 @@ To run the bot, a couple of environment variables need to be set
 | Env Var | Optional | Description |
 | ------- | -------- | ----------- |
 | `$DISCORD_TOKEN` | No | The token for the Discord bot that you just created. |
-| `$NIXPKGS_URL` | Yes | The url to the version of nixpkgs you want to use for the `/nixpkgs` command. |
-| `$GITHUB_TOKEN` | Yes | Github API token. |
+| `$GITHUB_TOKEN` | No | Github API token. |
 
 ## Thanks
 
