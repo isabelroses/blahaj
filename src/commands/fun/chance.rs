@@ -10,7 +10,7 @@ pub async fn roll(
     #[description = "# of sides"] sides: Option<u32>,
 ) -> Result<()> {
     let sides = sides.unwrap_or(6);
-    let roll = rand::thread_rng().gen_range(1..=sides);
+    let roll = rand::rng().random_range(1..=sides);
     ctx.say(format!("You rolled a **{roll}**")).await?;
     Ok(())
 }
@@ -28,7 +28,7 @@ pub async fn raffle(ctx: Context<'_>) -> Result<()> {
 
     let mut find_member = false;
     while !find_member {
-        let selected = rand::thread_rng().gen_range(1..=members.len());
+        let selected = rand::rng().random_range(1..=members.len());
         let memeber = &members[selected].user;
         memeberid = memeber.id;
 

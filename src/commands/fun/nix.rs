@@ -60,7 +60,7 @@ const MEMES: &[&str] = &[
 /// nix fixes this
 #[poise::command(slash_command)]
 pub async fn nix(ctx: Context<'_>) -> Result<()> {
-    let select = rand::thread_rng().gen_range(0..=MEMES.len());
+    let select = rand::rng().random_range(0..=MEMES.len());
     let img = MEMES[select];
 
     ctx.say(format!("https://raw.githubusercontent.com/gytis-ivaskevicius/high-quality-nix-content/master/memes/{img}")).await?;

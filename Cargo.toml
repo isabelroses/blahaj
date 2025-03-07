@@ -16,22 +16,22 @@ color-eyre = "0.6.3"
 dotenv = "0.15.0"
 humantime = "2.1.0"
 kittysay = "0.8.0"
-nixpkgs-track = "0.1.0"
+nixpkgs-track_lib = "0.2.0"
 poise = "0.6.1"
-rand = "0.8.5"
-regex = "1.11.0"
-serenity = "0.12.2"
+rand = "0.9.0"
+regex = "1.11.1"
+serenity = "0.12.4"
 
 [dependencies.serde]
-version = "1.0.210"
+version = "1.0.218"
 features = ["derive"]
 
 [dependencies.reqwest]
-version = "0.12.8"
+version = "0.12.12"
 features = ["json"]
 
 [dependencies.tokio]
-version = "1.40.0"
+version = "1.43.0"
 features = ["macros", "rt-multi-thread"]
 
 [lints.clippy]

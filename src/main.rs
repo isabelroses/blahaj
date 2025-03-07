@@ -3,7 +3,7 @@ mod event_handler;
 
 use dotenv::dotenv;
 use reqwest::Client;
-use std::env;
+use std::{convert::AsRef, env};
 
 use color_eyre::eyre::{Report, Result};
 use poise::serenity_prelude::{ActivityData, ClientBuilder, GatewayIntents};
@@ -12,6 +12,14 @@ use poise::serenity_prelude::{ActivityData, ClientBuilder, GatewayIntents};
 // User data, which is stored and accessible in all command invocations
 pub struct Data {
     client: Client,
+}
+
+pub struct W<T>(T);
+
+impl AsRef<Client> for W<Client> {
+    fn as_ref(&self) -> &reqwest::Client {
+        &self.0
+    }
 }
 
 pub type Context<'a> = poise::Context<'a, Data, Report>;
