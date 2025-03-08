@@ -12,6 +12,7 @@ use poise::serenity_prelude::{ActivityData, ClientBuilder, GatewayIntents};
 // User data, which is stored and accessible in all command invocations
 pub struct Data {
     client: Client,
+    github_token: String,
 }
 
 pub struct W<T>(T);
@@ -73,6 +74,7 @@ async fn main() -> Result<()> {
 
                 Ok(Data {
                     client: Client::builder().user_agent("blahaj").build()?,
+                    github_token: env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set"),
                 })
             })
         })

@@ -1,7 +1,6 @@
 use color_eyre::eyre::Result;
 use nixpkgs_track_lib::{branch_contains_commit, fetch_nixpkgs_pull_request};
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
-use std::env;
 
 use crate::Context;
 
@@ -23,11 +22,12 @@ pub async fn nixpkgs(
 ) -> Result<()> {
     ctx.defer().await?;
 
-    let github_token = env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set");
-
-    let pull_request =
-        fetch_nixpkgs_pull_request(crate::W(ctx.data().client.clone()), pr, Some(&github_token))
-            .await?;
+    let pull_request = fetch_nixpkgs_pull_request(
+        crate::W(ctx.data().client.clone()),
+        pr,
+        Some(&ctx.data().github_token),
+    )
+    .await?;
 
     let Some(commit_sha) = pull_request.merge_commit_sha else {
         ctx.say("This pull request is very old. I can't track it!")
@@ -37,7 +37,7 @@ pub async fn nixpkgs(
 
     let mut embed_description = String::new();
     for branch in BRANCHES {
-        let github_token = github_token.clone();
+        let github_token = ctx.data().github_token.clone();
         let commit_sha = commit_sha.clone();
 
         let has_pull_request = branch_contains_commit(
