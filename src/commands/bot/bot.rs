@@ -1,12 +1,11 @@
 use crate::Context;
 use color_eyre::eyre::Result;
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
-use std::env;
 
 /// Displays information about the bot
 #[poise::command(slash_command)]
 pub async fn botinfo(ctx: Context<'_>) -> Result<()> {
-    let rev = env::var("BUILD_REV").unwrap_or("unknown".to_string());
+    let rev = option_env!("BUILD_REV").unwrap_or("unknown");
 
     let embed = CreateReply::default().embed(
         CreateEmbed::default()
