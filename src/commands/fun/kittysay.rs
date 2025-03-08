@@ -1,7 +1,7 @@
 use color_eyre::eyre::Result;
 use kittysay::{print, FormatOptions};
 
-use crate::Context;
+use crate::types::Context;
 
 /// Make the kitty say something :3
 #[poise::command(slash_command, guild_only)]

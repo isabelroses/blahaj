@@ -2,7 +2,7 @@ use color_eyre::eyre::Result;
 use nixpkgs_track_lib::{branch_contains_commit, fetch_nixpkgs_pull_request};
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
 
-use crate::Context;
+use crate::types::Context;
 
 const BRANCHES: [&str; 5] = [
     "master",
@@ -23,7 +23,7 @@ pub async fn nixpkgs(
     ctx.defer().await?;
 
     let pull_request = fetch_nixpkgs_pull_request(
-        crate::W(ctx.data().client.clone()),
+        crate::types::W(ctx.data().client.clone()),
         pr,
         Some(&ctx.data().github_token),
     )
@@ -41,7 +41,7 @@ pub async fn nixpkgs(
         let commit_sha = commit_sha.clone();
 
         let has_pull_request = branch_contains_commit(
-            crate::W(ctx.data().client.clone()),
+            crate::types::W(ctx.data().client.clone()),
             branch,
             &commit_sha,
             Some(&github_token),

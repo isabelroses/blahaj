@@ -4,7 +4,7 @@ use poise::serenity_prelude::{Context, FullEvent};
 mod code_expantion;
 mod kitten;
 
-use crate::Data;
+use crate::types::Data;
 
 // TODO: add starboard
 pub async fn event_handler(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()> {

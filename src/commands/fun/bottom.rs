@@ -1,7 +1,7 @@
 use bottomify::bottom;
 use color_eyre::eyre::Result;
 
-use crate::Context;
+use crate::types::Context;
 
 /// Translate your words for the bottoms to understand
 #[poise::command(slash_command, guild_only)]

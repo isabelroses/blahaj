@@ -1,6 +1,6 @@
 use color_eyre::eyre::Result;
 
-use crate::Context;
+use crate::types::Context;
 
 /// Replies with "Pong!" or does it?
 #[poise::command(slash_command, guild_only)]

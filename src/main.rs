@@ -1,29 +1,12 @@
 mod commands;
 mod event_handler;
+mod types;
 
 use dotenv::dotenv;
-use reqwest::Client;
-use std::{convert::AsRef, env};
+use std::env;
 
-use color_eyre::eyre::{Report, Result};
+use color_eyre::eyre::Result;
 use poise::serenity_prelude::{ActivityData, ClientBuilder, GatewayIntents};
-
-#[derive(Debug)]
-// User data, which is stored and accessible in all command invocations
-pub struct Data {
-    client: Client,
-    github_token: String,
-}
-
-pub struct W<T>(T);
-
-impl AsRef<Client> for W<Client> {
-    fn as_ref(&self) -> &reqwest::Client {
-        &self.0
-    }
-}
-
-pub type Context<'a> = poise::Context<'a, Data, Report>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,6 +18,7 @@ async fn main() -> Result<()> {
 
     // Configure the client with your Discord bot token in the environment.
     let token = env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN to be set");
+
     let intents = GatewayIntents::non_privileged()
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILD_PRESENCES
@@ -72,10 +56,7 @@ async fn main() -> Result<()> {
 
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
-                Ok(Data {
-                    client: Client::builder().user_agent("isabelroses/blahaj").build()?,
-                    github_token: env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set"),
-                })
+                Ok(types::Data::new())
             })
         })
         .options(opts)

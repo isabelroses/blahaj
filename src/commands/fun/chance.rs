@@ -1,4 +1,4 @@
-use crate::Context;
+use crate::types::Context;
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{OnlineStatus, UserId};
 use rand::Rng;

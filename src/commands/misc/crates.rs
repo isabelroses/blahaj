@@ -4,7 +4,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serenity::all::{CreateEmbedAuthor, CreateEmbedFooter, Timestamp};
 
-use crate::Context;
+use crate::types::Context;
 
 const CRATES_API_URL: &str = "https://crates.io/api/v1";
 const CRATES_PUBLIC_URL: &str = "https://lib.rs";

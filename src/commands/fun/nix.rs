@@ -1,4 +1,4 @@
-use crate::Context;
+use crate::types::Context;
 use color_eyre::eyre::Result;
 use rand::Rng;
 
