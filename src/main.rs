@@ -73,7 +73,7 @@ async fn main() -> Result<()> {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
                 Ok(Data {
-                    client: Client::builder().user_agent("blahaj").build()?,
+                    client: Client::builder().user_agent("isabelroses/blahaj").build()?,
                     github_token: env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set"),
                 })
             })
