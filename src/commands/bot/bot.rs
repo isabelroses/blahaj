@@ -23,6 +23,7 @@ pub async fn botinfo(ctx: Context<'_>) -> Result<()> {
             .color(0x00ff_ffff)
             .field("Git rev", rev, false)
             .field("Bot ID", "1087418361283092510", false)
+            .field("Code", "https://github.com/isabelroses/blahaj", false)
             .field("Created at", bot_created_at.to_string(), false),
     );
 
