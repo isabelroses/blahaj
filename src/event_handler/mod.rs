@@ -13,11 +13,9 @@ pub async fn event_handler(ctx: &Context, event: &FullEvent, data: &Data) -> Res
         println!("Logged in as {}", data_about_bot.user.name);
     }
 
-    let client = &data.client;
-
-    code_expantion::handle(ctx, event, client).await?;
-    kitten::handle(ctx, event, client).await?;
-    replace_link::handle(ctx, event, client).await?;
+    code_expantion::handle(ctx, event, data).await?;
+    kitten::handle(ctx, event, data).await?;
+    replace_link::handle(ctx, event, data).await?;
 
     Ok(())
 }

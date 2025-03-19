@@ -1,10 +1,11 @@
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{Context, FullEvent};
 use regex::Regex;
-use reqwest::Client;
 use serenity::all::EditMessage;
 
-pub async fn handle(ctx: &Context, event: &FullEvent, _client: &Client) -> Result<()> {
+use crate::types::Data;
+
+pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
         let regex = Regex::new(r"(https?:\/\/(?:www\.)?(x\.com|twitter\.com|reddit\.com|instagram\.com|tiktok\.com)\/[^\s]+)").unwrap();
         let mut links: Vec<String> = Vec::new();

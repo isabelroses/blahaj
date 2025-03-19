@@ -6,9 +6,11 @@ use poise::serenity_prelude::{Context, FullEvent};
 use regex::Regex;
 use reqwest::Client;
 
-pub async fn handle(ctx: &Context, event: &FullEvent, client: &Client) -> Result<()> {
+use crate::types::Data;
+
+pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
-        let code_blocks = extract_code_blocks(new_message.content.clone(), client).await?;
+        let code_blocks = extract_code_blocks(new_message.content.clone(), &data.client).await?;
 
         if !code_blocks.is_empty() {
             new_message

@@ -1,9 +1,10 @@
 use color_eyre::eyre::{eyre, Result};
 use poise::serenity_prelude::{Context, FullEvent};
-use reqwest::Client;
 use serenity::all::{ChannelId, Member, RoleId, UserId};
 
-pub async fn handle(ctx: &Context, event: &FullEvent, _client: &Client) -> Result<()> {
+use crate::types::Data;
+
+pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()> {
     if let FullEvent::GuildMemberAddition { new_member } = event {
         if new_member.guild_id != 1095080242219073606 {
             return Ok(());
