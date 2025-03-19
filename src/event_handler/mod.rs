@@ -3,6 +3,7 @@ use poise::serenity_prelude::{Context, FullEvent};
 
 mod code_expantion;
 mod kitten;
+mod replace_link;
 
 use crate::types::Data;
 
@@ -16,6 +17,7 @@ pub async fn event_handler(ctx: &Context, event: &FullEvent, data: &Data) -> Res
 
     code_expantion::handle(ctx, event, client).await?;
     kitten::handle(ctx, event, client).await?;
+    replace_link::handle(ctx, event, client).await?;
 
     Ok(())
 }
