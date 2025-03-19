@@ -35,6 +35,10 @@ async fn main() -> Result<()> {
             // misc commands
             commands::misc::nixpkgs::nixpkgs(),
             commands::misc::crates::crates(),
+            // moderation commands
+            commands::moderation::ban::ban(),
+            commands::moderation::kick::kick(),
+            commands::moderation::timeout::timeout(),
             // fun commands
             commands::fun::nix::nix(),
             commands::fun::chance::roll(),
