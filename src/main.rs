@@ -46,6 +46,7 @@ async fn main() -> Result<()> {
             commands::fun::kittysay::kittysay(),
             commands::fun::bottom::topify(),
             commands::fun::bottom::bottomify(),
+            commands::fun::pet::pet(),
         ],
         event_handler: |ctx, event, _, data| {
             Box::pin(crate::event_handler::event_handler(ctx, event, data))
