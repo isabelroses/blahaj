@@ -7,7 +7,7 @@ use crate::types::Data;
 
 pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
-        let regex = Regex::new(r"(https?:\/\/(?:(www|vm)\.)?(x\.com|twitter\.com|reddit\.com|instagram\.com|tiktok\.com)\/[^\s]+)").unwrap();
+        let regex = Regex::new(r"(https?:\/\/(?:(www|vm)\.)?(x\.com|twitter\.com|reddit\.com|instagram\.com|tiktok\.com|bsky\.app)\/[^\s]+)").unwrap();
         let mut links: Vec<String> = Vec::new();
 
         for capture in regex.find_iter(&new_message.content) {
@@ -22,7 +22,8 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                 .replace("https://instagram.com", "https://ddinstagram.com")
                 .replace("https://www.tiktok.com", "https://tfxktok.com")
                 .replace("https://vm.tiktok.com", "https://vm.vxtiktok.com")
-                .replace("https://tiktok.com", "https://tfxktok.com");
+                .replace("https://tiktok.com", "https://tfxktok.com")
+                .replace("https://bsky.app", "https://fxbsky.app");
 
             links.push(modified_url);
         }
