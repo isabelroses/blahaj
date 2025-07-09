@@ -24,19 +24,19 @@ pub async fn start_http_server(
     data: Arc<Data>,
     port: u16,
 ) -> color_eyre::eyre::Result<()> {
-    let addr = format!("127.0.0.1:{}", port);
+    let addr = format!("127.0.0.1:{port}");
     let listener = TcpListener::bind(&addr).await?;
-    
-    println!("HTTP server listening on http://{}", addr);
-    
+
+    println!("HTTP server listening on http://{addr}");
+
     loop {
         let (stream, _) = listener.accept().await?;
         let ctx = Arc::clone(&ctx);
         let data = Arc::clone(&data);
-        
+
         tokio::spawn(async move {
             if let Err(e) = handle_connection(stream, ctx, data).await {
-                eprintln!("Error handling connection: {}", e);
+                eprintln!("Error handling connection: {e}");
             }
         });
     }
@@ -48,15 +48,15 @@ async fn handle_connection(
     _data: Arc<Data>,
 ) -> color_eyre::eyre::Result<()> {
     let mut buffer = [0; 1024];
-    stream.read(&mut buffer).await?;
-    
+    stream.read_exact(&mut buffer).await?;
+
     let request = String::from_utf8_lossy(&buffer[..]);
     let request_line = request.lines().next().unwrap_or("");
-    
+
     if request_line.starts_with("GET /members") {
         let guild_id = extract_guild_id_from_request(request_line)
             .unwrap_or(GuildId::new(1095080242219073606));
-        
+
         match get_guild_members(&ctx, guild_id).await {
             Ok(response_body) => {
                 let response = format!(
@@ -67,7 +67,7 @@ async fn handle_connection(
                 stream.write_all(response.as_bytes()).await?;
             }
             Err(e) => {
-                let error_body = format!(r#"{{"error": "Failed to fetch members: {}"}}"#, e);
+                let error_body = format!(r#"{{"error": "Failed to fetch members: {e}"}}"#);
                 let response = format!(
                     "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
                     error_body.len(),
@@ -85,7 +85,7 @@ async fn handle_connection(
         );
         stream.write_all(response.as_bytes()).await?;
     }
-    
+
     Ok(())
 }
 
@@ -99,7 +99,7 @@ fn extract_guild_id_from_request(request_line: &str) -> Option<GuildId> {
                 Some((parts.next()?, parts.next()?))
             })
             .collect();
-        
+
         if let Some(guild_id_str) = params.get("guild_id") {
             if let Ok(guild_id) = guild_id_str.parse::<u64>() {
                 return Some(GuildId::new(guild_id));
@@ -109,12 +109,9 @@ fn extract_guild_id_from_request(request_line: &str) -> Option<GuildId> {
     None
 }
 
-async fn get_guild_members(
-    ctx: &Context,
-    guild_id: GuildId,
-) -> color_eyre::eyre::Result<String> {
+async fn get_guild_members(ctx: &Context, guild_id: GuildId) -> color_eyre::eyre::Result<String> {
     let members = guild_id.members(&ctx.http, None, None).await?;
-    
+
     let member_infos: Vec<MemberInfo> = members
         .iter()
         .map(|member| MemberInfo {
@@ -123,11 +120,11 @@ async fn get_guild_members(
             avatar_url: member.user.avatar_url(),
         })
         .collect();
-    
+
     let response = MembersResponse {
         guild_id: guild_id.to_string(),
         members: member_infos,
     };
-    
+
     Ok(serde_json::to_string_pretty(&response)?)
 }

@@ -62,12 +62,14 @@ async fn main() -> Result<()> {
 
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
-                // h tee tee pee 
+                // h tee tee pee
                 let ctx_clone = Arc::new(ctx.clone());
                 let data_clone = Arc::new(types::Data::new());
                 tokio::spawn(async move {
-                    if let Err(e) = http_server::start_http_server(ctx_clone, data_clone, 3000).await {
-                        eprintln!("HTTP server error: {}", e);
+                    if let Err(e) =
+                        http_server::start_http_server(ctx_clone, data_clone, 3000).await
+                    {
+                        eprintln!("HTTP server error: {e}");
                     }
                 });
 

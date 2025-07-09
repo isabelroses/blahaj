@@ -1,6 +1,7 @@
 use color_eyre::eyre::Result;
 use nixpkgs_track_lib::{branch_contains_commit, fetch_nixpkgs_pull_request};
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
+use std::fmt::Write as _;
 
 use crate::types::Context;
 
@@ -48,11 +49,12 @@ pub async fn nixpkgs(
         )
         .await?;
 
-        embed_description.push_str(&format!(
-            "{}: {}\n",
+        let _ = writeln!(
+            embed_description,
+            "{}: {}",
             branch,
             if has_pull_request { "✅" } else { "❌" }
-        ));
+        );
     }
 
     let embed = CreateReply::default().embed(
