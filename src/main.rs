@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
     let framework = poise::Framework::builder()
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
-                ctx.set_activity(Some(ActivityData::custom("new bot, who dis?")));
+                ctx.set_activity(Some(ActivityData::custom("meow meow meow")));
 
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
