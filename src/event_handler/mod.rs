@@ -1,6 +1,7 @@
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{Context, FullEvent};
 
+mod blahaj_is_this_true;
 mod code_expantion;
 mod kitten;
 mod replace_link;
@@ -16,6 +17,7 @@ pub async fn event_handler(ctx: &Context, event: &FullEvent, data: &Data) -> Res
     code_expantion::handle(ctx, event, data).await?;
     kitten::handle(ctx, event, data).await?;
     replace_link::handle(ctx, event, data).await?;
+    blahaj_is_this_true::handle(ctx, event, data).await?;
 
     Ok(())
 }

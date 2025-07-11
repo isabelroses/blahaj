@@ -93,7 +93,7 @@ async fn fetch_code_block(
 
     let language = file
         .split('.')
-        .last()
+        .next_back()
         .map_or("", remove_query_string)
         .to_lowercase();
 

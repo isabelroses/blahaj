@@ -1,9 +1,10 @@
 mod commands;
 mod event_handler;
+mod http_server;
 mod types;
 
 use dotenv::dotenv;
-use std::env;
+use std::{env, sync::Arc};
 
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{ActivityData, ClientBuilder, GatewayIntents};
@@ -58,8 +59,21 @@ async fn main() -> Result<()> {
     let framework = poise::Framework::builder()
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
-                ctx.set_activity(Some(ActivityData::custom("new bot, who dis?")));
+                ctx.set_activity(Some(ActivityData::custom("meow meow meow")));
+
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+
+                // h tee tee pee
+                let ctx_clone = Arc::new(ctx.clone());
+                let data_clone = Arc::new(types::Data::new());
+                tokio::spawn(async move {
+                    if let Err(e) =
+                        http_server::start_http_server(ctx_clone, data_clone, 3000).await
+                    {
+                        eprintln!("HTTP server error: {e}");
+                    }
+                });
+
                 Ok(types::Data::new())
             })
         })
