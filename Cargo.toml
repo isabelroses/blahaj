@@ -8,7 +8,7 @@ readme = "README.md"
 homepage = "https://github.com/isabelroses/blahaj"
 repository = "https://github.com/isabelroses/blahaj"
 keywords = ["discord", "bot", "serenity"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 bottomify = "1.2.0"
