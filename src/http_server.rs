@@ -48,7 +48,7 @@ async fn handle_connection(
     _data: Arc<Data>,
 ) -> color_eyre::eyre::Result<()> {
     let mut buffer = [0; 1024];
-    stream.read_exact(&mut buffer).await?;
+    stream.read(&mut buffer).await?;
 
     let request = String::from_utf8_lossy(&buffer[..]);
     let request_line = request.lines().next().unwrap_or("");
