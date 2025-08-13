@@ -4,7 +4,11 @@ use color_eyre::eyre::Result;
 use crate::types::Context;
 
 /// Translate your words for the bottoms to understand
-#[poise::command(slash_command, guild_only)]
+#[poise::command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
 pub async fn bottomify(ctx: Context<'_>, #[description = "text"] input: String) -> Result<()> {
     let out = bottom::encode_string(&input);
 
@@ -13,7 +17,11 @@ pub async fn bottomify(ctx: Context<'_>, #[description = "text"] input: String) 
 }
 
 /// Translate your words for the tops and normies to understand
-#[poise::command(slash_command, guild_only)]
+#[poise::command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
 pub async fn topify(ctx: Context<'_>, #[description = "text"] input: String) -> Result<()> {
     const MAX_LEN: usize = 1994;
     const WRAP: &str = "```";

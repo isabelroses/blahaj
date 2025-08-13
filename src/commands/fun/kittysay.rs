@@ -4,7 +4,11 @@ use kittysay::{print, FormatOptions};
 use crate::types::Context;
 
 /// Make the kitty say something :3
-#[poise::command(slash_command, guild_only)]
+#[poise::command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
 pub async fn kittysay(
     ctx: Context<'_>,
     #[description = "say"] input: String,
