@@ -23,7 +23,12 @@ rustPlatform.buildRustPackage {
     );
   };
 
-  cargoLock.lockFile = ./Cargo.lock;
+  cargoLock = {
+    lockFile = ./Cargo.lock;
+    outputHashes = {
+      "poise-0.6.1" = "sha256-/UrFlHWDsCDaqWd+XchmH0PzauxIWuYaJp9ZZh3W+50=";
+    };
+  };
 
   buildInputs = [ openssl ];
   nativeBuildInputs = [ pkg-config ];
