@@ -34,14 +34,16 @@ async fn main() -> Result<()> {
             commands::bot::ping::ping(),
             commands::bot::bot::botinfo(),
             // misc commands
-            commands::misc::nixpkgs::nixpkgs(),
             commands::misc::crates::crates(),
             // moderation commands
             commands::moderation::ban::ban(),
             commands::moderation::kick::kick(),
             commands::moderation::timeout::timeout(),
+            // commands for nix
+            commands::nix::nixpkgs::nixpkgs(),
+            commands::nix::nix::nix(),
+            commands::nix::nixpkg::nixpkg(),
             // fun commands
-            commands::fun::nix::nix(),
             commands::fun::chance::roll(),
             commands::fun::chance::raffle(),
             commands::fun::kittysay::kittysay(),
