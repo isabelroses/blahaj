@@ -1,17 +1,24 @@
+use std::fs;
+
 use crate::types::Context;
 use color_eyre::eyre::Result;
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
-use std::process::Command;
+
+#[derive(serde::Deserialize)]
+struct Package {
+    pname: String,
+    version: String,
+    meta: PackageMeta,
+}
 
 #[derive(serde::Deserialize)]
 struct PackageMeta {
-    name: String,
     description: String,
     homepage: Option<String>,
     license: License,
     maintainers: Vec<Maintainers>,
     position: String,
-    // broken: bool,
+    broken: bool,
     insecure: bool,
     unfree: bool,
 }
@@ -25,7 +32,7 @@ struct License {
 #[derive(serde::Deserialize)]
 struct Maintainers {
     name: String,
-    // email: Option<String>,
+    github: String,
 }
 
 /// Track nixpkgs PRs
@@ -38,52 +45,38 @@ pub async fn nixpkg(
     ctx: Context<'_>,
     #[description = "package name"] package: String,
 ) -> Result<()> {
-    let pkg =
-        Command::new("nix")
-            .args([
-                "eval",
-                "--impure",
-                "--json",
-                "--expr",
-                &format!(
-                    "with import <nixpkgs> {{ config.allowUnfree = true; }}; pkgs.{package}.meta",
-                ),
-            ])
-            .output()?;
+    ctx.defer().await?;
 
-    if !pkg.status.success() {
-        ctx.say("Package not found or an error occurred.").await?;
-        ctx.say(format!("Error: {}", String::from_utf8_lossy(&pkg.stderr)))
-            .await?;
-        return Ok(());
-    }
+    let nixpkgs_json =
+        std::env::var("NIXPKGS_JSON").expect("NIXPKGS_JSON environment variable must be set");
 
-    let pkg: PackageMeta = serde_json::from_slice(&pkg.stdout)?;
+    let mut data = fs::read(nixpkgs_json)?;
+    let pkgs: serde_json::Value = simd_json::serde::from_slice(&mut data)?;
+    let pkg: Package = serde_json::from_value(pkgs["packages"][package].clone())?;
 
-    let file = &pkg.position[51..];
-    let fin_file = file
-        .split_once(':')
-        .map_or_else(|| file.to_string(), |(before, _)| before.to_string());
+    let file = pkg.meta.position.split(':').next().unwrap_or("unknown");
 
     let embed = CreateEmbed::new()
-        .title(pkg.name)
+        .title(format!("{} {}", pkg.pname, pkg.version))
         .url(format!(
-            "https://github.com/nixos/nixpkgs/blob/master/{fin_file}"
+            "https://github.com/nixos/nixpkgs/blob/master/{file}"
         ))
-        .description(pkg.description)
+        .description(pkg.meta.description)
         .field(
             "Homepage",
-            pkg.homepage.unwrap_or_else(|| "N/A".to_string()),
+            pkg.meta.homepage.unwrap_or_else(|| "N/A".to_string()),
             false,
         )
-        .field("license", pkg.license.spdx_id, true)
-        .field("insecure", pkg.insecure.to_string(), true)
-        .field("unfree", pkg.unfree.to_string(), true)
+        .field("license", pkg.meta.license.spdx_id, true)
+        .field("insecure", pkg.meta.insecure.to_string(), true)
+        .field("unfree", pkg.meta.unfree.to_string(), true)
+        .field("broken", pkg.meta.broken.to_string(), true)
         .field(
             "maintainers",
-            pkg.maintainers
+            pkg.meta
+                .maintainers
                 .iter()
-                .map(|m| m.name.clone())
+                .map(|m| format!("[{}](https://github.com/{})", m.name, m.github))
                 .collect::<Vec<String>>()
                 .join(", "),
             false,
