@@ -65,6 +65,7 @@ const MEMES: &[&str] = &[
    "https://media.githubusercontent.com/media/isabelroses/memes/refs/heads/main/nix-fixes-this/nix-fixes-crowdstrike.png",
    "https://media.githubusercontent.com/media/isabelroses/memes/refs/heads/main/nixgf/latest.png",
    "https://media.githubusercontent.com/media/isabelroses/memes/refs/heads/main/nix-users-today.png",
+   "https://media.githubusercontent.com/media/isabelroses/memes/refs/heads/main/nix-is-a-slipper-slope.png",
 ];
 
 /// nix fixes this
