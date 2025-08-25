@@ -22,8 +22,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                 .replace("https://instagram.com", "https://ddinstagram.com")
                 .replace("https://www.tiktok.com", "https://tfxktok.com")
                 .replace("https://vm.tiktok.com", "https://vm.vxtiktok.com")
-                .replace("https://tiktok.com", "https://tfxktok.com")
-                .replace("https://bsky.app", "https://fxbsky.app");
+                .replace("https://tiktok.com", "https://tfxktok.com");
 
             links.push(modified_url);
         }
