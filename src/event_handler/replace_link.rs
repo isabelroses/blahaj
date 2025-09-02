@@ -9,6 +9,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
     if let FullEvent::Message { new_message } = event {
         let regex = Regex::new(r"(https?:\/\/(?:(www|vm)\.)?(x\.com|twitter\.com|reddit\.com|instagram\.com|tiktok\.com)\/[^\s]+)").unwrap();
         let mut links: Vec<String> = Vec::new();
+        let mut begging_no_twitter: bool = false;
 
         for capture in regex.find_iter(&new_message.content) {
             let url = capture.as_str();
@@ -24,6 +25,10 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                 .replace("https://vm.tiktok.com", "https://vm.vxtiktok.com")
                 .replace("https://tiktok.com", "https://tfxktok.com");
 
+            if url.contains("x.com") || url.contains("twitter.com") {
+                begging_no_twitter = true;
+            }
+
             links.push(modified_url);
         }
 
@@ -38,7 +43,11 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                     EditMessage::new().suppress_embeds(true),
                 )
                 .await;
-            let _ = new_message.reply(ctx.http.clone(), links.join("\n")).await;
+            if begging_no_twitter {
+                let _ = new_message.reply(ctx.http.clone(), links.join("\n")).await;
+            } else {
+                let _ = new_message.reply(ctx.http.clone(), links.join("\n") + "\n-# Please stop using twitter!").await;
+            }
         }
     }
 
