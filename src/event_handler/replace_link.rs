@@ -44,9 +44,14 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                 )
                 .await;
             if begging_no_twitter {
-                let _ = new_message.reply(ctx.http.clone(), links.join("\n")).await;
+                let _ = new_message
+                    .reply(
+                        ctx.http.clone(),
+                        links.join("\n") + "\n-# Please stop using twitter!",
+                    )
+                    .await;
             } else {
-                let _ = new_message.reply(ctx.http.clone(), links.join("\n") + "\n-# Please stop using twitter!").await;
+                let _ = new_message.reply(ctx.http.clone(), links.join("\n")).await;
             }
         }
     }
