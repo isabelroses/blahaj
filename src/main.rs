@@ -38,6 +38,7 @@ async fn main() -> Result<()> {
             // moderation commands
             commands::moderation::ban::ban(),
             commands::moderation::kick::kick(),
+            commands::moderation::purge::purge(),
             commands::moderation::timeout::timeout(),
             // commands for nix
             commands::nix::nixpkgs::nixpkgs(),
