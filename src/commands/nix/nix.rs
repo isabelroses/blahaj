@@ -11,7 +11,6 @@ const MEMES: &[&str] = &[
    "https://raw.githubusercontent.com/gytis-ivaskevicius/high-quality-nix-content/master/memes/config-not-entierly-declarative.png",
    "https://raw.githubusercontent.com/gytis-ivaskevicius/high-quality-nix-content/master/memes/dark-secret-nixpkgs.png",
    "https://raw.githubusercontent.com/gytis-ivaskevicius/high-quality-nix-content/master/memes/debian-and-arch-bad.png",
-   "https://raw.githubusercontent.com/gytis-ivaskevicius/high-quality-nix-content/master/memes/default.nix",
    "https://raw.githubusercontent.com/gytis-ivaskevicius/high-quality-nix-content/master/memes/do-not-get-mad.png",
    "https://raw.githubusercontent.com/gytis-ivaskevicius/high-quality-nix-content/master/memes/eelco-nixpill.png",
    "https://raw.githubusercontent.com/gytis-ivaskevicius/high-quality-nix-content/master/memes/eelco-prism.mp4",
