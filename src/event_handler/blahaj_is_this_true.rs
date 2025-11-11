@@ -19,7 +19,7 @@ const REPLIES: &[&str] = &[
 pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
         if new_message.mentions_user(&ctx.cache.current_user()) {
-            let is_this = Regex::new(r"is this true(\?)?").unwrap();
+            let is_this = Regex::new(r"is this (true|real)(\?)?").unwrap();
             if is_this.is_match(&new_message.content) {
                 let select = rand::rng().random_range(0..=REPLIES.len());
                 let response = REPLIES[select];
