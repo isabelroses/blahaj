@@ -52,6 +52,7 @@ async fn main() -> Result<()> {
             commands::fun::bottom::bottomify(),
             commands::fun::pet::pet(),
             commands::fun::height::height(),
+            commands::fun::they::they(),
         ],
         event_handler: |ctx, event, _, data| {
             Box::pin(crate::event_handler::event_handler(ctx, event, data))
