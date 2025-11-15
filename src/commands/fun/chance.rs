@@ -41,8 +41,10 @@ pub async fn raffle(ctx: Context<'_>) -> Result<()> {
     }
 
     if Some(memeberid).is_some() && memeberid != UserId::new(1) {
-        ctx.say(format!("<@{memeberid}> has won the raffle"))
-            .await?;
+        let builder = poise::CreateReply::default()
+            .content(format!("<@{memeberid}> has won the raffle"))
+            .allowed_mentions(poise::serenity_prelude::CreateAllowedMentions::new());
+        ctx.send(builder).await?;
     }
 
     Ok(())
