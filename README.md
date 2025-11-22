@@ -39,6 +39,7 @@ To run the bot, a couple of environment variables need to be set
 | ------- | -------- | ----------- |
 | `$DISCORD_TOKEN` | No | The token for the Discord bot that you just created. |
 | `$GITHUB_TOKEN` | No | Github API token. |
+| `#DATABASE_PATH` | No | Path to the Sqlite database file. |
 
 ## Thanks
 

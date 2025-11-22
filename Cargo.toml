@@ -16,6 +16,7 @@ color-eyre = "0.6.5"
 dotenv = "0.15.0"
 humantime = "2.2.0"
 kittysay = "0.8.0"
+nixdle = { git = "https://github.com/nixdle/nixdle", branch = "stable" }
 nixpkgs-track_lib = "0.2.0"
 rand = "0.9.2"
 regex = "1.12.2"
@@ -27,6 +28,11 @@ simd-json = { version = "0.17.0", features = ["serde"] }
 [dependencies.serde]
 version = "1.0.228"
 features = ["derive"]
+
+[dependencies.sqlx]
+version = "0.8.6"
+default-features = false
+features = ["derive", "macros", "migrate", "runtime-tokio", "sqlite"]
 
 [dependencies.reqwest]
 version = "0.12.24"
