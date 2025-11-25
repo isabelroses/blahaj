@@ -21,9 +21,9 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                 .replace("https://reddit.com", "https://rxddit.com")
                 .replace("https://www.instagram.com", "https://kkinstagram.com")
                 .replace("https://instagram.com", "https://kkinstagram.com")
-                .replace("https://www.tiktok.com", "https://tfxktok.com")
-                .replace("https://vm.tiktok.com", "https://vm.vxtiktok.com")
-                .replace("https://tiktok.com", "https://tfxktok.com");
+                .replace("https://www.tiktok.com", "https://tnktok.com")
+                .replace("https://vm.tiktok.com", "https://vm.tnktok.com")
+                .replace("https://tiktok.com", "https://tnktok.com");
 
             if url.contains("x.com") || url.contains("twitter.com") {
                 begging_no_twitter = true;
