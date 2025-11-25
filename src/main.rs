@@ -30,6 +30,7 @@ async fn main() -> Result<()> {
             // user commands
             commands::user::whois::whois(),
             commands::user::avatar::avatar(),
+            commands::user::color_me::color_me(),
             // bot commands
             commands::bot::ping::ping(),
             commands::bot::bot::botinfo(),
