@@ -14,38 +14,3 @@ pub async fn roll(
     ctx.say(format!("You rolled a **{roll}**")).await?;
     Ok(())
 }
-
-/// Select a random person to win a raffle
-#[poise::command(slash_command)]
-pub async fn raffle(ctx: Context<'_>) -> Result<()> {
-    let mut memeberid: UserId = UserId::new(1);
-
-    let members = ctx
-        .guild_id()
-        .unwrap()
-        .members(&ctx.http(), None, None)
-        .await?;
-
-    let mut find_member = false;
-    while !find_member {
-        let selected = rand::rng().random_range(1..=members.len());
-        let memeber = &members[selected].user;
-        memeberid = memeber.id;
-
-        if let Some(presence) = ctx.guild().unwrap().presences.get(&memeberid) {
-            find_member = presence.status == OnlineStatus::Online
-                || presence.status == OnlineStatus::Idle
-                    && !memeber.bot
-                    && memeberid != ctx.author().id;
-        }
-    }
-
-    if Some(memeberid).is_some() && memeberid != UserId::new(1) {
-        let builder = poise::CreateReply::default()
-            .content(format!("<@{memeberid}> has won the raffle"))
-            .allowed_mentions(poise::serenity_prelude::CreateAllowedMentions::new());
-        ctx.send(builder).await?;
-    }
-
-    Ok(())
-}

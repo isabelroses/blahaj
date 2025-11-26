@@ -47,7 +47,6 @@ async fn main() -> Result<()> {
             commands::nix::nixpkg::nixpkg(),
             // fun commands
             commands::fun::chance::roll(),
-            commands::fun::chance::raffle(),
             commands::fun::kittysay::kittysay(),
             commands::fun::bottom::topify(),
             commands::fun::bottom::bottomify(),
