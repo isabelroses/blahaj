@@ -53,6 +53,7 @@ async fn main() -> Result<()> {
             commands::fun::pet::pet(),
             commands::fun::height::height(),
             commands::fun::they::they(),
+            commands::fun::nixdle::nixdle(),
         ],
         event_handler: |ctx, event, _, data| {
             Box::pin(crate::event_handler::event_handler(ctx, event, data))
@@ -69,7 +70,13 @@ async fn main() -> Result<()> {
 
                 // h tee tee pee
                 let ctx_clone = Arc::new(ctx.clone());
-                let data_clone = Arc::new(types::Data::new());
+                let data_clone = Arc::new(types::Data::new().await);
+
+                sqlx::migrate!("./migrations")
+                    .run(&data_clone.db_pool)
+                    .await
+                    .expect("failed to run database migrations");
+
                 tokio::spawn(async move {
                     if let Err(e) =
                         http_server::start_http_server(ctx_clone, data_clone, 3000).await
@@ -78,7 +85,7 @@ async fn main() -> Result<()> {
                     }
                 });
 
-                Ok(types::Data::new())
+                Ok(types::Data::new().await)
             })
         })
         .options(opts)

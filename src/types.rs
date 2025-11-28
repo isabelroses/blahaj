@@ -1,4 +1,5 @@
 use reqwest::Client;
+use sqlx::Pool;
 use std::{convert::AsRef, env};
 
 #[derive(Debug)]
@@ -6,16 +7,20 @@ use std::{convert::AsRef, env};
 pub struct Data {
     pub client: Client,
     pub github_token: String,
+    pub db_pool: Pool<sqlx::Sqlite>,
 }
 
 impl Data {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         Self {
             client: Client::builder()
                 .user_agent("isabelroses/blahaj")
                 .build()
                 .unwrap(),
             github_token: env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set"),
+            db_pool: Pool::connect(&env::var("DATABASE_PATH").expect("DATABASE_PATH not set"))
+                .await
+                .unwrap(),
         }
     }
 }
