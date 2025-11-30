@@ -39,15 +39,7 @@ To run the bot, a couple of environment variables need to be set
 | ------- | -------- | ----------- |
 | `$DISCORD_TOKEN` | No | The token for the Discord bot that you just created. |
 | `$GITHUB_TOKEN` | No | Github API token. |
-| `$NIXPKGS_JSON` | Only if you don't plan on running the nixpkg command | Path to a nixpkgs JSON file |
 
-You can setup the `$NIXPKGS_JSON` file by running:
-
-```sh
-# you can keep the url up to date by checking https://channels.nixos.org/nixpkgs-unstable
-curl -o packages.json.br https://releases.nixos.org/nixpkgs/nixpkgs-26.05pre904445.890f57fde071/packages.json.br
-brotli --decompress packages.json.br -o packages.json
-```
 
 ## Thanks
 
