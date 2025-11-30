@@ -1,6 +1,6 @@
 use color_eyre::eyre::Result;
 use nixpkgs_track_lib::{branch_contains_commit, fetch_nixpkgs_pull_request};
-use poise::{serenity_prelude::CreateEmbed, CreateReply};
+use poise::{CreateReply, serenity_prelude::CreateEmbed};
 use std::fmt::Write as _;
 
 use crate::types::Context;

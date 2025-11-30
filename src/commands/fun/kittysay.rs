@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use kittysay::{print, FormatOptions};
+use kittysay::{FormatOptions, print};
 
 use crate::types::Context;
 

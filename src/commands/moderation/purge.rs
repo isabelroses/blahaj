@@ -1,5 +1,5 @@
-use crate::types::Context;
 use crate::Result;
+use crate::types::Context;
 use poise::serenity_prelude::GetMessages;
 
 #[poise::command(slash_command, guild_only, required_permissions = "BAN_MEMBERS")]

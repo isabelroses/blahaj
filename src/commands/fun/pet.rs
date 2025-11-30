@@ -1,6 +1,6 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
-use poise::{serenity_prelude::all::User, CreateReply};
+use poise::{CreateReply, serenity_prelude::all::User};
 use serenity::all::CreateAttachment;
 
 #[derive(serde::Serialize, serde::Deserialize)]

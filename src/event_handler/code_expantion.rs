@@ -1,7 +1,7 @@
 // the logic here is pretty much ripped from https://github.com/uncenter/discord-forum-bot/blob/main/src/modules/expandGitHubLinks.ts
 // with some modifications so I can make it work on diffrent git hosts
 
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use poise::serenity_prelude::{Context, FullEvent};
 use regex::Regex;
 use reqwest::Client;

@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use poise::{serenity_prelude::CreateEmbed, CreateReply};
+use poise::{CreateReply, serenity_prelude::CreateEmbed};
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serenity::all::{CreateEmbedAuthor, CreateEmbedFooter, Timestamp};

@@ -1,6 +1,6 @@
 use crate::Result;
-use poise::serenity_prelude::all::User;
 use poise::serenity_prelude::RoleId;
+use poise::serenity_prelude::all::User;
 
 use crate::types::Context;
 
@@ -23,9 +23,10 @@ pub async fn ban(
     // Only check perms if user is in guild
     if let Ok(user_member) = guild.member(ctx, &user).await {
         let get_role_pos = |roles: &[RoleId]| {
-            roles.iter()
-            .filter_map(|role| guild.roles.get(role))
-            .max_by_key(|role| role.position)
+            roles
+                .iter()
+                .filter_map(|role| guild.roles.get(role))
+                .max_by_key(|role| role.position)
         };
 
         let user_highest_role = get_role_pos(&user_member.roles);
@@ -44,22 +45,21 @@ pub async fn ban(
     }
 
     if !guild
-        .user_permissions_in(
-            &ctx.guild_channel().await.unwrap(),
-            &bot_member,
-        )
+        .user_permissions_in(&ctx.guild_channel().await.unwrap(), &bot_member)
         .ban_members()
     {
         ctx.say("Bot missing permission: ``Ban Members``").await?;
         return Ok(());
     }
 
-    guild.ban_with_reason(
-        ctx,
-        &user,
-        delete_messages_day_count.unwrap_or(0),
-        &reason.unwrap_or("No reason provided.".to_string())
-    ).await?;
+    guild
+        .ban_with_reason(
+            ctx,
+            &user,
+            delete_messages_day_count.unwrap_or(0),
+            &reason.unwrap_or("No reason provided.".to_string()),
+        )
+        .await?;
 
     ctx.say(format!("Banned user {user}.")).await?;
 
