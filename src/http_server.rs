@@ -100,10 +100,10 @@ fn extract_guild_id_from_request(request_line: &str) -> Option<GuildId> {
             })
             .collect();
 
-        if let Some(guild_id_str) = params.get("guild_id") {
-            if let Ok(guild_id) = guild_id_str.parse::<u64>() {
-                return Some(GuildId::new(guild_id));
-            }
+        if let Some(guild_id_str) = params.get("guild_id")
+            && let Ok(guild_id) = guild_id_str.parse::<u64>()
+        {
+            return Some(GuildId::new(guild_id));
         }
     }
     None

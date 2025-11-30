@@ -1,7 +1,7 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
-use poise::CreateReply;
 use poise::serenity_prelude::{Colour, EditRole};
+use poise::CreateReply;
 
 /// Change your display color or remove your color role.
 #[poise::command(slash_command)]
