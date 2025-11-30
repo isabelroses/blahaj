@@ -1,5 +1,6 @@
 use crate::Result;
 use poise::serenity_prelude::all::User;
+use poise::serenity_prelude::RoleId;
 
 use crate::types::Context;
 
@@ -16,32 +17,36 @@ pub async fn ban(
         .get_guild(ctx.guild_id().unwrap())
         .await?;
 
-    let user_member = guild.member(ctx, user.id).await.unwrap();
     let bot_member = guild.member(ctx, ctx.framework().bot_id).await.unwrap();
     let author_member = guild.member(ctx, ctx.author()).await.unwrap();
 
-    let user_highest_role = user_member
-        .roles
-        .iter()
-        .filter_map(|role| guild.roles.get(role))
-        .max_by_key(|role| role.position);
+    // Only check perms if user is in guild
+    if let Ok(user_member) = guild.member(ctx, &user).await {
+        let get_role_pos = |roles: &[RoleId]| {
+            roles.iter()
+            .filter_map(|role| guild.roles.get(role))
+            .max_by_key(|role| role.position)
+        };
 
-    let author_highest_role = author_member
-        .roles
-        .iter()
-        .filter_map(|role| guild.roles.get(role))
-        .max_by_key(|role| role.position);
+        let user_highest_role = get_role_pos(&user_member.roles);
+        let author_highest_role = get_role_pos(&author_member.roles);
+        let bot_highest_role = get_role_pos(&bot_member.roles);
 
-    let bot_highest_role = bot_member
-        .roles
-        .iter()
-        .filter_map(|role| guild.roles.get(role))
-        .max_by_key(|role| role.position);
+        if author_highest_role < user_highest_role {
+            ctx.say("User has higher role than you.").await?;
+            return Ok(());
+        }
+
+        if bot_highest_role < user_highest_role {
+            ctx.say("User has higher role than bot!").await?;
+            return Ok(());
+        }
+    }
 
     if !guild
         .user_permissions_in(
             &ctx.guild_channel().await.unwrap(),
-            &guild.member(ctx, ctx.framework().bot_id).await.unwrap(),
+            &bot_member,
         )
         .ban_members()
     {
@@ -49,25 +54,12 @@ pub async fn ban(
         return Ok(());
     }
 
-    if author_highest_role < user_highest_role {
-        ctx.say("User has higher role then you.").await?;
-        return Ok(());
-    }
-
-    if bot_highest_role < user_highest_role {
-        ctx.say("User has higher role then bot!").await?;
-        return Ok(());
-    }
-
-    guild
-        .member(ctx, user.id)
-        .await?
-        .ban_with_reason(
-            ctx,
-            delete_messages_day_count.unwrap_or(0),
-            &reason.unwrap_or("No reason provided.".to_string()),
-        )
-        .await?;
+    guild.ban_with_reason(
+        ctx,
+        user,
+        delete_messages_day_count.unwrap_or(0),
+        &reason.unwrap_or("No reason provided.".to_string())
+    ).await?;
 
     Ok(())
 }
