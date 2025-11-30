@@ -1,4 +1,5 @@
-use std::fs;
+use std::fs::{self, File};
+use std::io::BufReader;
 
 use crate::types::Context;
 use color_eyre::eyre::Result;
@@ -50,9 +51,10 @@ pub async fn nixpkg(
     let nixpkgs_json =
         std::env::var("NIXPKGS_JSON").expect("NIXPKGS_JSON environment variable must be set");
 
-    let mut data = fs::read(nixpkgs_json)?;
-    let pkgs: serde_json::Value = simd_json::serde::from_slice(&mut data)?;
-    let pkg: Package = serde_json::from_value(pkgs["packages"][package].clone())?;
+    let file = File::open(nixpkgs_json)?;
+    let reader = BufReader::new(file);
+    let mut pkgs: serde_json::Value = serde_json::from_reader(reader)?;
+    let pkg: Package = serde_json::from_value(pkgs["packages"][&package].take())?;
 
     let file = pkg.meta.position.split(':').next().unwrap_or("unknown");
 
