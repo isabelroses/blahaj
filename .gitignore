@@ -3,3 +3,5 @@ vendor
 result*
 target
 /.idea
+nixpkgs.db
+nixpkgs.hash
