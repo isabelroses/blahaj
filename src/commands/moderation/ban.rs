@@ -56,10 +56,12 @@ pub async fn ban(
 
     guild.ban_with_reason(
         ctx,
-        user,
+        &user,
         delete_messages_day_count.unwrap_or(0),
         &reason.unwrap_or("No reason provided.".to_string())
     ).await?;
+
+    ctx.say(format!("Banned user {user}.")).await?;
 
     Ok(())
 }
