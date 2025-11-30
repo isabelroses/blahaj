@@ -1,18 +1,24 @@
-use std::fs::File;
-use std::io::BufReader;
-
+use once_cell::sync::Lazy;
+use rusqlite::{Connection, params};
+use std::sync::Mutex;
 use crate::types::Context;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, eyre};
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
 
-#[derive(serde::Deserialize)]
+static DB: Lazy<Mutex<Connection>> = Lazy::new(|| {
+    let db_path = std::env::var("NIXPKGS_DB")
+        .unwrap_or_else(|_| "nixpkgs.db".to_string());
+    Mutex::new(Connection::open(db_path).expect("Failed to open database"))
+});
+
+#[derive(Debug)]
 struct Package {
     pname: String,
     version: String,
     meta: PackageMeta,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug)]
 struct PackageMeta {
     description: String,
     homepage: Option<String>,
@@ -24,13 +30,12 @@ struct PackageMeta {
     unfree: bool,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug)]
 struct License {
-    #[serde(rename = "spdxId")]
     spdx_id: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Debug)]
 struct Maintainers {
     name: String,
     github: String,
@@ -47,22 +52,59 @@ pub async fn nixpkg(
     #[description = "package name"] package: String,
 ) -> Result<()> {
     ctx.defer().await?;
-
-    let nixpkgs_json =
-        std::env::var("NIXPKGS_JSON").expect("NIXPKGS_JSON environment variable must be set");
-
-    let file = File::open(nixpkgs_json)?;
-    let reader = BufReader::new(file);
-    let mut pkgs: serde_json::Value = serde_json::from_reader(reader)?;
-    let pkg: Package = serde_json::from_value(pkgs["packages"][&package].take())?;
-
+    
+    let (mut pkg, maintainers) = {
+        let db = DB.lock().unwrap();
+        
+        let mut stmt = db.prepare(
+            "SELECT pname, version, description, homepage, license_spdx_id, 
+                    position, broken, insecure, unfree 
+             FROM packages WHERE package_name = ?1"
+        )?;
+        
+        let pkg = stmt.query_row(params![&package], |row| {
+            Ok(Package {
+                pname: row.get(0)?,
+                version: row.get(1)?,
+                meta: PackageMeta {
+                    description: row.get(2)?,
+                    homepage: row.get(3)?,
+                    license: License {
+                        spdx_id: row.get::<_, Option<String>>(4)?.unwrap_or_else(|| "Unknown".to_string()),
+                    },
+                    position: row.get::<_, Option<String>>(5)?.unwrap_or_else(|| "unknown".to_string()),
+                    broken: row.get::<_, i32>(6)? != 0,
+                    insecure: row.get::<_, i32>(7)? != 0,
+                    unfree: row.get::<_, i32>(8)? != 0,
+                    maintainers: Vec::new(),
+                },
+            })
+        }).map_err(|_| eyre!("Package not found"))?;
+        
+        let mut maint_stmt = db.prepare(
+            "SELECT name, github FROM maintainers WHERE package_name = ?1"
+        )?;
+        
+        let maintainers: Vec<Maintainers> = maint_stmt
+            .query_map(params![&package], |row| {
+                Ok(Maintainers {
+                    name: row.get::<_, Option<String>>(0)?.unwrap_or_else(|| "Unknown".to_string()),
+                    github: row.get::<_, Option<String>>(1)?.unwrap_or_else(|| "".to_string()),
+                })
+            })?
+            .filter_map(Result::ok)
+            .collect();
+        
+        (pkg, maintainers)
+    };
+    
+    pkg.meta.maintainers = maintainers;
+    
     let file = pkg.meta.position.split(':').next().unwrap_or("unknown");
 
     let embed = CreateEmbed::new()
         .title(format!("{} {}", pkg.pname, pkg.version))
-        .url(format!(
-            "https://github.com/nixos/nixpkgs/blob/master/{file}"
-        ))
+        .url(format!("https://github.com/nixos/nixpkgs/blob/master/{file}"))
         .description(pkg.meta.description)
         .field(
             "Homepage",
@@ -75,12 +117,16 @@ pub async fn nixpkg(
         .field("broken", pkg.meta.broken.to_string(), true)
         .field(
             "maintainers",
-            pkg.meta
-                .maintainers
-                .iter()
-                .map(|m| format!("[{}](https://github.com/{})", m.name, m.github))
-                .collect::<Vec<String>>()
-                .join(", "),
+            if pkg.meta.maintainers.is_empty() {
+                "None".to_string()
+            } else {
+                pkg.meta.maintainers
+                    .iter()
+                    .filter(|m| !m.github.is_empty())
+                    .map(|m| format!("[{}](https://github.com/{})", m.name, m.github))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            },
             false,
         )
         .color(0x00DE_A586);
