@@ -1,12 +1,16 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
 use poise::{
-    CreateReply,
     serenity_prelude::{CreateEmbed, CreateEmbedAuthor},
+    CreateReply,
 };
 
 /// Displays information about the bot
-#[poise::command(slash_command)]
+#[poise::command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
 pub async fn botinfo(ctx: Context<'_>) -> Result<()> {
     let rev = option_env!("BUILD_REV").unwrap_or("unknown");
 
