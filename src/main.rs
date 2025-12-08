@@ -23,9 +23,9 @@ async fn get_latest_nixpkgs_release() -> Result<NixpkgsRelease> {
     let html = response.text().await?;
 
     let url_regex =
-        regex::Regex::new(r#"<a href='([^']+/packages\.json\.br)'>packages\.json\.br</a>"#)?;
+        regex::Regex::new(r"<a href='([^']+/packages\.json\.br)'>packages\.json\.br</a>")?;
     let hash_regex = regex::Regex::new(
-        r#"packages\.json\.br</a></td><td align='right'>\d+</td><td><tt>([a-f0-9]{64})</tt>"#,
+        r"packages\.json\.br</a></td><td align='right'>\d+</td><td><tt>([a-f0-9]{64})</tt>",
     )?;
 
     let url = url_regex
@@ -36,9 +36,9 @@ async fn get_latest_nixpkgs_release() -> Result<NixpkgsRelease> {
             if path.starts_with("http") {
                 path.to_string()
             } else if path.starts_with('/') {
-                format!("https://releases.nixos.org{}", path)
+                format!("https://releases.nixos.org{path}")
             } else {
-                format!("https://releases.nixos.org/{}", path)
+                format!("https://releases.nixos.org/{path}")
             }
         })
         .ok_or_else(|| color_eyre::eyre::eyre!("Could not find packages.json.br URL"))?;
@@ -63,6 +63,7 @@ fn store_hash(hash: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 async fn ensure_nixpkgs_database() -> Result<()> {
     let db_path = env::var("NIXPKGS_DB").unwrap_or_else(|_| "nixpkgs.db".to_string());
 
@@ -179,7 +180,7 @@ async fn ensure_nixpkgs_database() -> Result<()> {
             serde_json::Value::Object(obj) => obj
                 .get("spdxId")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
             serde_json::Value::Array(arr) => {
                 let ids: Vec<&str> = arr
                     .iter()
@@ -207,51 +208,61 @@ async fn ensure_nixpkgs_database() -> Result<()> {
             pkg_data
                 .get("pname")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
             pkg_data
                 .get("version")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
             pkg_data
                 .get("name")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
             pkg_data
                 .get("system")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
             pkg_data
                 .get("outputName")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            meta.get("available")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false) as i32,
-            meta.get("broken")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false) as i32,
+                .map(std::string::ToString::to_string),
+            i32::from(
+                meta.get("available")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+            ),
+            i32::from(
+                meta.get("broken")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+            ),
             meta.get("description")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            homepage.map(|s| s.to_string()),
-            meta.get("insecure")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false) as i32,
-            meta.get("unfree")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false) as i32,
-            meta.get("unsupported")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false) as i32,
+                .map(std::string::ToString::to_string),
+            homepage.map(std::string::ToString::to_string),
+            i32::from(
+                meta.get("insecure")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+            ),
+            i32::from(
+                meta.get("unfree")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+            ),
+            i32::from(
+                meta.get("unsupported")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+            ),
             meta.get("position")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
             meta.get("longDescription")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
             meta.get("mainProgram")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
             license_spdx,
             None::<String>,
             0,
@@ -265,17 +276,17 @@ async fn ensure_nixpkgs_database() -> Result<()> {
                         pkg_name.clone(),
                         obj.get("name")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
+                            .map(std::string::ToString::to_string),
                         obj.get("email")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
+                            .map(std::string::ToString::to_string),
                         obj.get("github")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
-                        obj.get("githubId").and_then(|v| v.as_i64()),
+                            .map(std::string::ToString::to_string),
+                        obj.get("githubId").and_then(serde_json::Value::as_i64),
                         obj.get("matrix")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.to_string()),
+                            .map(std::string::ToString::to_string),
                     ));
                 }
             }
@@ -302,12 +313,10 @@ async fn ensure_nixpkgs_database() -> Result<()> {
             }
             tx.commit()?;
 
-            println!(
-                "Progress: {}/{} ({:.1}%)",
-                count,
-                total,
-                (count as f64 / total as f64) * 100.0
-            );
+            #[allow(clippy::cast_precision_loss)]
+            let progress = (f64::from(count) / total as f64) * 100.0;
+
+            println!("Progress: {count}/{total} ({progress:.1}%)");
             package_batch.clear();
             maintainer_batch.clear();
         }

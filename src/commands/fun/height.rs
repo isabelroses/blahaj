@@ -17,7 +17,14 @@ pub async fn height(
             let total_inches = rand::rng().random_range(49..=101);
             let feet = total_inches / 12;
             let inches = total_inches % 12;
+
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                clippy::cast_precision_loss
+            )]
             let cm = (total_inches as f32 * 2.54) as u32;
+
             (feet, inches, cm)
         }
     };

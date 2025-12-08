@@ -1,7 +1,7 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
-use poise::CreateReply;
 use poise::serenity_prelude::{Colour, EditRole};
+use poise::CreateReply;
 
 /// Change your display color or remove your color role.
 #[poise::command(slash_command)]
@@ -9,17 +9,14 @@ pub async fn color_me(
     ctx: Context<'_>,
     #[description = "Hex color code (e.g., #FF5733 or FF5733)"] color: Option<String>,
 ) -> Result<()> {
-    let guild_id = match ctx.guild_id() {
-        Some(id) => id,
-        None => {
-            ctx.send(
-                CreateReply::default()
-                    .content("This command can only be used in a server.")
-                    .ephemeral(true),
-            )
-            .await?;
-            return Ok(());
-        }
+    let Some(guild_id) = ctx.guild_id() else {
+        ctx.send(
+            CreateReply::default()
+                .content("This command can only be used in a server.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
     };
 
     let member = guild_id.member(ctx.http(), ctx.author().id).await?;
@@ -36,58 +33,52 @@ pub async fn color_me(
         Some(color_str) => {
             // parse the hex color
             let color_str = color_str.trim_start_matches('#');
-            let color_value = match u32::from_str_radix(color_str, 16) {
-                Ok(val) => val,
-                Err(_) => {
-                    ctx.send(
-                        CreateReply::default()
-                            .content("Invalid hex color! Please provide a valid hex color code (e.g., #FF5733 or FF5733).")
-                            .ephemeral(true),
-                    )
-                    .await?;
-                    return Ok(());
-                }
+            let Ok(color_value) = u32::from_str_radix(color_str, 16) else {
+                ctx.send(
+                    CreateReply::default()
+                        .content("Invalid hex color! Please provide a valid hex color code (e.g., #FF5733 or FF5733).")
+                        .ephemeral(true),
+                )
+                .await?;
+                return Ok(());
             };
 
-            let colour = Colour::new(color_value);
+            let colour_picked = Colour::new(color_value);
 
-            match existing_role {
-                Some((role_id, _)) => {
-                    // update existing role
-                    guild_id
-                        .edit_role(ctx.http(), role_id, EditRole::new().colour(colour.0))
-                        .await?;
-                    ctx.send(
-                        CreateReply::default()
-                            .content(format!("Updated your color to `#{color_str}`! <3"))
-                            .ephemeral(true),
+            if let Some((role_id, _)) = existing_role {
+                // update existing role
+                guild_id
+                    .edit_role(ctx.http(), role_id, EditRole::new().colour(colour_picked.0))
+                    .await?;
+                ctx.send(
+                    CreateReply::default()
+                        .content(format!("Updated your color to `#{color_str}`! <3"))
+                        .ephemeral(true),
+                )
+                .await?;
+            } else {
+                // or else create new role
+                let new_role = guild_id
+                    .create_role(
+                        ctx.http(),
+                        EditRole::new()
+                            .name(username)
+                            .colour(colour_picked.0)
+                            .hoist(false)
+                            .mentionable(false),
                     )
                     .await?;
-                }
-                None => {
-                    // or else create new role
-                    let new_role = guild_id
-                        .create_role(
-                            ctx.http(),
-                            EditRole::new()
-                                .name(username)
-                                .colour(colour.0)
-                                .hoist(false)
-                                .mentionable(false),
-                        )
-                        .await?;
 
-                    member.add_role(ctx.http(), new_role.id).await?;
+                member.add_role(ctx.http(), new_role.id).await?;
 
-                    ctx.send(
-                        CreateReply::default()
-                            .content(format!(
-                                "Created a new role and set your color to `#{color_str}`! <3"
-                            ))
-                            .ephemeral(true),
-                    )
-                    .await?;
-                }
+                ctx.send(
+                    CreateReply::default()
+                        .content(format!(
+                            "Created a new role and set your color to `#{color_str}`! <3"
+                        ))
+                        .ephemeral(true),
+                )
+                .await?;
             }
         }
         None => {

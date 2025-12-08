@@ -1,11 +1,10 @@
 use crate::types::Context;
 use color_eyre::eyre::{Result, eyre};
-use once_cell::sync::Lazy;
 use poise::{CreateReply, serenity_prelude::CreateEmbed};
 use rusqlite::{Connection, params};
 use std::sync::Mutex;
 
-static DB: Lazy<Mutex<Connection>> = Lazy::new(|| {
+static DB: std::sync::LazyLock<Mutex<Connection>> = std::sync::LazyLock::new(|| {
     let db_path = std::env::var("NIXPKGS_DB").unwrap_or_else(|_| "nixpkgs.db".to_string());
     Mutex::new(Connection::open(db_path).expect("Failed to open database"))
 });
@@ -97,7 +96,7 @@ pub async fn nixpkg(
                         .unwrap_or_else(|| "Unknown".to_string()),
                     github: row
                         .get::<_, Option<String>>(1)?
-                        .unwrap_or_else(|| "".to_string()),
+                        .unwrap_or_else(String::new),
                 })
             })?
             .filter_map(Result::ok)

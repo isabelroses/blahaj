@@ -85,8 +85,15 @@ pub async fn timeout(
         return Ok(());
     }
 
+    let seconds = i64::try_from(seconds);
+    if seconds.is_err() {
+        ctx.say("Duration value is too large!").await?;
+        return Ok(());
+    }
+
+    // safer unwrap then cloudflare lol
     let timeout_until =
-        Timestamp::from_unix_timestamp(Timestamp::now().unix_timestamp() + seconds as i64)?;
+        Timestamp::from_unix_timestamp(Timestamp::now().unix_timestamp() + seconds.unwrap())?;
 
     guild
         .member(ctx, user.id)
