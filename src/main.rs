@@ -1,10 +1,9 @@
 mod commands;
 mod event_handler;
-mod http_server;
 mod types;
 
 use dotenv::dotenv;
-use std::{env, path::Path, sync::Arc};
+use std::{env, path::Path};
 
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{ActivityData, ClientBuilder, GatewayIntents};
@@ -402,23 +401,12 @@ async fn main() -> Result<()> {
 
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
-                // h tee tee pee
-                let ctx_clone = Arc::new(ctx.clone());
-                let data_clone = Arc::new(types::Data::new());
-                tokio::spawn(async move {
-                    if let Err(e) =
-                        http_server::start_http_server(ctx_clone, data_clone, 3000).await
-                    {
-                        eprintln!("HTTP server error: {e}");
-                    }
-                });
-
                 tokio::spawn(async {
                     let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
                     loop {
                         interval.tick().await;
                         if let Err(e) = ensure_nixpkgs_database().await {
-                            eprintln!("Failed to update nixpkgs database: {}", e);
+                            eprintln!("Failed to update nixpkgs database: {e}");
                         }
                     }
                 });
