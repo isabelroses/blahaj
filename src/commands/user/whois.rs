@@ -1,12 +1,16 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
 use poise::{
-    CreateReply,
     serenity_prelude::{CreateEmbed, User},
+    CreateReply,
 };
 
 /// Displays your or another user's info
-#[poise::command(slash_command)]
+#[poise::command(
+    slash_command,
+    install_context = "Guild|User",
+    interaction_context = "Guild|BotDm|PrivateChannel"
+)]
 pub async fn whois(
     ctx: Context<'_>,
     #[description = "Selected user"] user: Option<User>,
