@@ -209,6 +209,7 @@ version = "0.2.1"
 dependencies = [
  "bottomify",
  "brotli",
+ "chrono",
  "color-eyre",
  "dotenv",
  "humantime",
