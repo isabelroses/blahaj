@@ -6,8 +6,8 @@ use rusqlite::{Connection, params};
 use std::sync::{LazyLock, Mutex};
 
 static COLOR_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
-    // I think this is ok.....
-    let conn = Connection::open("color_roles.db").expect("Failed to open color roles database");
+    let db_path = std::env::var("COLOR_ROLES_DB").unwrap_or_else(|_| "color_roles.db".to_string());
+    let conn = Connection::open(db_path).expect("Failed to open color roles database");
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS color_roles (
