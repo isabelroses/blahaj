@@ -6,7 +6,9 @@ use dotenv::dotenv;
 use std::{env, path::Path};
 
 use color_eyre::eyre::Result;
-use poise::serenity_prelude::{ActivityData, ClientBuilder, GatewayIntents};
+use poise::serenity_prelude::{
+    ActivityData, ChannelId, ClientBuilder, CreateAttachment, CreateMessage, GatewayIntents,
+};
 use sha2::{Digest, Sha256};
 
 #[derive(Debug)]
@@ -418,6 +420,50 @@ async fn main() -> Result<()> {
                         if let Err(e) = ensure_nixpkgs_database().await {
                             eprintln!("Failed to update nixpkgs database: {e}");
                         }
+                    }
+                });
+
+                let ctx_clone = ctx.clone();
+                tokio::spawn(async move {
+                    loop {
+                        let now = chrono::Utc::now();
+                        let target_time = now
+                            .date_naive()
+                            .and_hms_opt(11, 0, 0)
+                            .expect("Invalid time");
+                        let mut target_datetime =
+                            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+                                target_time,
+                                chrono::Utc,
+                            );
+
+                        if now.time()
+                            >= chrono::NaiveTime::from_hms_opt(11, 0, 0).expect("Invalid time")
+                        {
+                            target_datetime += chrono::Duration::days(1);
+                        }
+
+                        let duration_until_target = (target_datetime - now)
+                            .to_std()
+                            .unwrap_or(std::time::Duration::from_secs(0));
+                        tokio::time::sleep(duration_until_target).await;
+
+                        let channel_id = ChannelId::new(1095083877380395202);
+                        let attachment = CreateAttachment::path("assets/idk.webp").await;
+
+                        match attachment {
+                            Ok(file) => {
+                                let builder = CreateMessage::new().add_file(file);
+                                if let Err(e) = channel_id.send_message(&ctx_clone, builder).await {
+                                    eprintln!("Failed to send daily idk.webp: {e}");
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to load assets/idk.webp: {e}");
+                            }
+                        }
+
+                        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                     }
                 });
 

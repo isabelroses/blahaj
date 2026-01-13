@@ -94,9 +94,7 @@ pub async fn nixpkg(
                     name: row
                         .get::<_, Option<String>>(0)?
                         .unwrap_or_else(|| "Unknown".to_string()),
-                    github: row
-                        .get::<_, Option<String>>(1)?
-                        .unwrap_or_else(String::new),
+                    github: row.get::<_, Option<String>>(1)?.unwrap_or_else(String::new),
                 })
             })?
             .filter_map(Result::ok)

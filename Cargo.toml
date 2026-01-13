@@ -12,6 +12,7 @@ edition = "2024"
 
 [dependencies]
 bottomify = "1.2.0"
+chrono = "0.4"
 color-eyre = "0.6.5"
 dotenv = "0.15.0"
 humantime = "2.3.0"

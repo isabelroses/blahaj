@@ -1,8 +1,8 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
 use poise::{
-    serenity_prelude::{CreateEmbed, CreateEmbedAuthor},
     CreateReply,
+    serenity_prelude::{CreateEmbed, CreateEmbedAuthor},
 };
 
 /// Displays information about the bot

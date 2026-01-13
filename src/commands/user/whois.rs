@@ -1,8 +1,8 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
 use poise::{
-    serenity_prelude::{CreateEmbed, User},
     CreateReply,
+    serenity_prelude::{CreateEmbed, User},
 };
 
 /// Displays your or another user's info
