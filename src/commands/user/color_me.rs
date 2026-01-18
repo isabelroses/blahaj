@@ -6,7 +6,7 @@ use rusqlite::{Connection, params};
 use std::sync::{LazyLock, Mutex};
 
 static COLOR_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
-    let db_path = std::env::var("COLOR_ROLES_DB").unwrap_or_else(|_| "color_roles.db".to_string());
+    let db_path = crate::utils::get_data_dir().join("color_roles.db");
     let conn = Connection::open(db_path).expect("Failed to open color roles database");
 
     conn.execute(
@@ -133,7 +133,14 @@ pub async fn color_me(
                     .await?;
 
                 if let Some(new_name) = &role_name {
-                    if new_name != &current_name {
+                    if new_name == &current_name {
+                        ctx.send(
+                            CreateReply::default()
+                                .content(format!("Updated your color to `#{color_str}`! <3"))
+                                .ephemeral(true),
+                        )
+                        .await?;
+                    } else {
                         guild_id
                             .edit_role(ctx.http(), role_id, EditRole::new().name(new_name))
                             .await?;
@@ -142,13 +149,6 @@ pub async fn color_me(
                         ctx.send(
                             CreateReply::default()
                                 .content(format!("Updated your color to `#{color_str}` and renamed your role to `{new_name}`! <3"))
-                                .ephemeral(true),
-                        )
-                        .await?;
-                    } else {
-                        ctx.send(
-                            CreateReply::default()
-                                .content(format!("Updated your color to `#{color_str}`! <3"))
                                 .ephemeral(true),
                         )
                         .await?;
@@ -194,7 +194,14 @@ pub async fn color_me(
         None => {
             if let Some(new_name) = role_name {
                 if let Some((role_id, current_name)) = existing_role {
-                    if new_name != current_name {
+                    if new_name == current_name {
+                        ctx.send(
+                            CreateReply::default()
+                                .content("Your role already has that name!")
+                                .ephemeral(true),
+                        )
+                        .await?;
+                    } else {
                         guild_id
                             .edit_role(ctx.http(), role_id, EditRole::new().name(&new_name))
                             .await?;
@@ -203,13 +210,6 @@ pub async fn color_me(
                         ctx.send(
                             CreateReply::default()
                                 .content(format!("Renamed your role to `{new_name}`! <3"))
-                                .ephemeral(true),
-                        )
-                        .await?;
-                    } else {
-                        ctx.send(
-                            CreateReply::default()
-                                .content("Your role already has that name!")
                                 .ephemeral(true),
                         )
                         .await?;

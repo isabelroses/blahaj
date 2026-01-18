@@ -39,8 +39,6 @@ To run the bot, a couple of environment variables need to be set
 | ------- | -------- | ----------- |
 | `DISCORD_TOKEN` | No | The token for the Discord bot that you just created. |
 | `GITHUB_TOKEN` | No | Github API token. |
-| `NIXPKGS_DB` | Yes | Path to a nixpkgs database file |
-| `NIXPKGS_HASH_FILE` | Yes | Path to a nixpkgs hash file |
 
 Then run:
 

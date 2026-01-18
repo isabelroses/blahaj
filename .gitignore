@@ -3,6 +3,5 @@ vendor
 result*
 target
 /.idea
-nixpkgs.db
-nixpkgs.hash
-color_me.db
+# Database files (stored in /var/lib/blahaj for systemd services)
+/var/lib/blahaj/

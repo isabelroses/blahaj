@@ -5,7 +5,7 @@ use rusqlite::{Connection, params};
 use std::sync::Mutex;
 
 static DB: std::sync::LazyLock<Mutex<Connection>> = std::sync::LazyLock::new(|| {
-    let db_path = std::env::var("NIXPKGS_DB").unwrap_or_else(|_| "nixpkgs.db".to_string());
+    let db_path = crate::utils::get_data_dir().join("packages.db");
     Mutex::new(Connection::open(db_path).expect("Failed to open database"))
 });
 
