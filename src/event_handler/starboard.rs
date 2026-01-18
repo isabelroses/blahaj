@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use poise::serenity_prelude::{Context, FullEvent, ReactionType, Colour, EditMessage};
+use poise::serenity_prelude::{Colour, Context, EditMessage, FullEvent, ReactionType};
 use rusqlite::Connection;
 use std::sync::{LazyLock, Mutex};
 
@@ -82,7 +82,10 @@ async fn handle_reaction_add(
     };
 
     // Get the message
-    let message = reaction.channel_id.message(ctx, reaction.message_id).await?;
+    let message = reaction
+        .channel_id
+        .message(ctx, reaction.message_id)
+        .await?;
 
     // Count star reactions
     let star_count = message
@@ -132,13 +135,20 @@ async fn handle_reaction_add(
         };
 
         if let Some(starboard_msg_id) = starboard_msg_id
-            && let Ok(mut starboard_msg) = poise::serenity_prelude::ChannelId::new(starboard_channel_id)
-                .message(ctx, poise::serenity_prelude::MessageId::new(starboard_msg_id as u64))
+            && let Ok(mut starboard_msg) =
+                poise::serenity_prelude::ChannelId::new(starboard_channel_id)
+                    .message(
+                        ctx,
+                        poise::serenity_prelude::MessageId::new(starboard_msg_id as u64),
+                    )
+                    .await
+        {
+            let embed = create_star_embed(&message, star_count as i32);
+            starboard_msg
+                .edit(ctx, EditMessage::new().embed(embed))
                 .await
-            {
-                let embed = create_star_embed(&message, star_count as i32);
-                starboard_msg.edit(ctx, EditMessage::new().embed(embed)).await.ok();
-            }
+                .ok();
+        }
 
         return Ok(());
     }
@@ -152,7 +162,10 @@ async fn handle_reaction_add(
             ctx,
             poise::serenity_prelude::CreateMessage::new()
                 .embed(embed)
-                .content(format!("<#{}>", reaction.channel_id)),
+                .content(format!(
+                    "https://discord.com/channels/{}/{}/{}",
+                    guild_id, reaction.channel_id, reaction.message_id
+                )),
         )
         .await
     {
@@ -206,7 +219,10 @@ async fn handle_reaction_remove(
     };
 
     // Get the message
-    let message = reaction.channel_id.message(ctx, reaction.message_id).await?;
+    let message = reaction
+        .channel_id
+        .message(ctx, reaction.message_id)
+        .await?;
 
     // Count star reactions
     let star_count = message
@@ -233,7 +249,10 @@ async fn handle_reaction_remove(
     if star_count < threshold as u64 {
         // Remove from starboard
         poise::serenity_prelude::ChannelId::new(starboard_channel_id)
-            .delete_message(ctx, poise::serenity_prelude::MessageId::new(starboard_msg_id as u64))
+            .delete_message(
+                ctx,
+                poise::serenity_prelude::MessageId::new(starboard_msg_id as u64),
+            )
             .await
             .ok();
 
@@ -256,11 +275,17 @@ async fn handle_reaction_remove(
 
         // Update the starboard message
         if let Ok(mut starboard_msg) = poise::serenity_prelude::ChannelId::new(starboard_channel_id)
-            .message(ctx, poise::serenity_prelude::MessageId::new(starboard_msg_id as u64))
+            .message(
+                ctx,
+                poise::serenity_prelude::MessageId::new(starboard_msg_id as u64),
+            )
             .await
         {
             let embed = create_star_embed(&message, star_count as i32);
-            starboard_msg.edit(ctx, EditMessage::new().embed(embed)).await.ok();
+            starboard_msg
+                .edit(ctx, EditMessage::new().embed(embed))
+                .await
+                .ok();
         }
     }
 
@@ -277,9 +302,9 @@ fn create_star_embed(
                 .icon_url(message.author.face()),
         )
         .description(&message.content)
-        .footer(
-            poise::serenity_prelude::CreateEmbedFooter::new(format!("⭐ {star_count}")),
-        )
+        .footer(poise::serenity_prelude::CreateEmbedFooter::new(format!(
+            "⭐ {star_count}"
+        )))
         .colour(Colour::GOLD)
         .timestamp(message.timestamp);
 
