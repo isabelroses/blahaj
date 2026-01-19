@@ -29,11 +29,14 @@ fn get_user_role(user_id: UserId, guild_id: u64) -> Option<(RoleId, String)> {
         .prepare("SELECT role_id, role_name FROM color_roles WHERE user_id = ? AND guild_id = ?")
         .ok()?;
 
-    stmt.query_row(params![user_id.get() as i64, guild_id as i64], |row| {
-        let role_id: i64 = row.get(0)?;
-        let role_name: String = row.get(1)?;
-        Ok((RoleId::new(role_id as u64), role_name))
-    })
+    stmt.query_row(
+        params![user_id.get().cast_signed(), guild_id.cast_signed()],
+        |row| {
+            let role_id: i64 = row.get(0)?;
+            let role_name: String = row.get(1)?;
+            Ok((RoleId::new(role_id.cast_unsigned()), role_name))
+        },
+    )
     .ok()
 }
 
@@ -41,7 +44,7 @@ fn save_user_role(user_id: UserId, guild_id: u64, role_id: RoleId, role_name: &s
     let conn = COLOR_DB.lock().unwrap();
     conn.execute(
         "INSERT OR REPLACE INTO color_roles (user_id, guild_id, role_id, role_name) VALUES (?, ?, ?, ?)",
-        params![user_id.get() as i64, guild_id as i64, role_id.get() as i64, role_name],
+        params![user_id.get().cast_signed(), guild_id.cast_signed(), role_id.get().cast_signed(), role_name],
     )?;
     Ok(())
 }
@@ -50,7 +53,7 @@ fn delete_user_role(user_id: UserId, guild_id: u64) -> Result<()> {
     let conn = COLOR_DB.lock().unwrap();
     conn.execute(
         "DELETE FROM color_roles WHERE user_id = ? AND guild_id = ?",
-        params![user_id.get() as i64, guild_id as i64],
+        params![user_id.get().cast_signed(), guild_id.cast_signed()],
     )?;
     Ok(())
 }
@@ -59,12 +62,17 @@ fn update_role_name(user_id: UserId, guild_id: u64, new_name: &str) -> Result<()
     let conn = COLOR_DB.lock().unwrap();
     conn.execute(
         "UPDATE color_roles SET role_name = ? WHERE user_id = ? AND guild_id = ?",
-        params![new_name, user_id.get() as i64, guild_id as i64],
+        params![
+            new_name,
+            user_id.get().cast_signed(),
+            guild_id.cast_signed()
+        ],
     )?;
     Ok(())
 }
 
 /// Change your display color or remove your color role.
+#[allow(clippy::too_many_lines)]
 #[poise::command(slash_command)]
 pub async fn color_me(
     ctx: Context<'_>,

@@ -1,39 +1,8 @@
 use crate::types::Context;
+use crate::utils::STARBOARD_DB;
 use color_eyre::eyre::Result;
-use poise::serenity_prelude::ChannelId;
 use poise::CreateReply;
-use rusqlite::Connection;
-use std::sync::{LazyLock, Mutex};
-
-static STARBOARD_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
-    let db_path = crate::utils::get_data_dir().join("starboard.db");
-    Mutex::new(Connection::open(db_path).expect("Failed to open starboard database"))
-});
-
-fn ensure_tables_exist(conn: &Connection) -> rusqlite::Result<()> {
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS starred_messages (
-            message_id INTEGER PRIMARY KEY,
-            guild_id INTEGER NOT NULL,
-            channel_id INTEGER NOT NULL,
-            starboard_message_id INTEGER,
-            star_count INTEGER NOT NULL DEFAULT 1,
-            UNIQUE(message_id)
-        )",
-        [],
-    )?;
-
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS starboard_config (
-            guild_id INTEGER PRIMARY KEY,
-            channel_id INTEGER NOT NULL,
-            threshold INTEGER NOT NULL DEFAULT 3
-        )",
-        [],
-    )?;
-
-    Ok(())
-}
+use poise::serenity_prelude::ChannelId;
 
 /// Enable the starboard feature for this server
 #[poise::command(slash_command, required_permissions = "ADMINISTRATOR")]
@@ -53,14 +22,13 @@ pub async fn starboard_enable(
         return Ok(());
     };
 
-    let threshold = threshold.unwrap_or(3).max(1).min(100);
+    let threshold = threshold.unwrap_or(3).clamp(1, 100);
 
     {
         let conn = STARBOARD_DB.lock().unwrap();
-        ensure_tables_exist(&conn)?;
         conn.execute(
             "INSERT OR REPLACE INTO starboard_config (guild_id, channel_id, threshold) VALUES (?, ?, ?)",
-            [guild_id.get() as i64, channel.get() as i64, i64::from(threshold)],
+            [guild_id.get().cast_signed(), channel.get().cast_signed(), i64::from(threshold)],
         )?;
     }
 
@@ -91,10 +59,9 @@ pub async fn starboard_disable(ctx: Context<'_>) -> Result<()> {
 
     {
         let conn = STARBOARD_DB.lock().unwrap();
-        ensure_tables_exist(&conn)?;
         conn.execute(
             "DELETE FROM starboard_config WHERE guild_id = ?",
-            [guild_id.get() as i64],
+            [guild_id.get().cast_signed()],
         )?;
     }
 
@@ -123,14 +90,13 @@ pub async fn starboard_config(ctx: Context<'_>) -> Result<()> {
 
     let config: Option<(u64, i32)> = {
         let conn = STARBOARD_DB.lock().unwrap();
-        ensure_tables_exist(&conn).ok();
         conn.query_row(
             "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
-            [guild_id.get() as i64],
+            [guild_id.get().cast_signed()],
             |row| {
                 let channel_id: i64 = row.get(0)?;
                 let threshold: i32 = row.get(1)?;
-                Ok((channel_id as u64, threshold))
+                Ok((channel_id.cast_unsigned(), threshold))
             },
         )
         .ok()

@@ -90,7 +90,7 @@ fn store_hash(hash: &str) -> Result<()> {
     Ok(())
 }
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::items_after_statements)]
 pub async fn ensure_nixpkgs_database() -> Result<()> {
     let db_path = crate::utils::get_data_dir().join("packages.db");
 
@@ -139,6 +139,8 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
         .ok_or_else(|| color_eyre::eyre::eyre!("Invalid packages.json format"))?;
 
     println!("Creating database with {} packages...", packages.len());
+
+    const BATCH_SIZE: usize = 5000; // Increased from 1000 for better performance
 
     let mut conn = rusqlite::Connection::open(&db_path)?;
 
@@ -194,13 +196,12 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
 
     // Enable WAL mode for better concurrent access
     conn.pragma_update(None, "journal_mode", "WAL")?;
-    
+
     // Increase cache size for better performance
     conn.pragma_update(None, "cache_size", "-64000")?;
 
     let total = packages.len();
     let mut count = 0;
-    const BATCH_SIZE: usize = 5000; // Increased from 1000 for better performance
 
     let mut package_batch = Vec::with_capacity(BATCH_SIZE);
     let mut maintainer_batch = Vec::with_capacity(BATCH_SIZE * 4); // Estimate 4 maintainers per package
@@ -260,11 +261,23 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
                 if let Some(obj) = m.as_object() {
                     maintainer_batch.push(Maintainer {
                         package_name: pkg_name.clone(),
-                        name: obj.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                        email: obj.get("email").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                        github: obj.get("github").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                        name: obj
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .map(std::string::ToString::to_string),
+                        email: obj
+                            .get("email")
+                            .and_then(|v| v.as_str())
+                            .map(std::string::ToString::to_string),
+                        github: obj
+                            .get("github")
+                            .and_then(|v| v.as_str())
+                            .map(std::string::ToString::to_string),
                         github_id: obj.get("githubId").and_then(serde_json::Value::as_i64),
-                        matrix: obj.get("matrix").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                        matrix: obj
+                            .get("matrix")
+                            .and_then(|v| v.as_str())
+                            .map(std::string::ToString::to_string),
                     });
                 }
             }
@@ -297,7 +310,7 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
 fn extract_string(obj: &serde_json::Value, key: &str) -> Option<String> {
     obj.get(key)
         .and_then(serde_json::Value::as_str)
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 /// Extract license information from license data
@@ -306,7 +319,7 @@ fn extract_license(license_data: &serde_json::Value) -> Option<String> {
         serde_json::Value::Object(obj) => obj
             .get("spdxId")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+            .map(std::string::ToString::to_string),
         serde_json::Value::Array(arr) => {
             let ids: Vec<&str> = arr
                 .iter()
@@ -328,7 +341,10 @@ fn extract_license(license_data: &serde_json::Value) -> Option<String> {
 fn extract_homepage(meta: &serde_json::Value) -> Option<String> {
     meta.get("homepage").and_then(|h| match h {
         serde_json::Value::String(s) => Some(s.clone()),
-        serde_json::Value::Array(arr) => arr.first().and_then(|v| v.as_str()).map(|s| s.to_string()),
+        serde_json::Value::Array(arr) => arr
+            .first()
+            .and_then(|v| v.as_str())
+            .map(std::string::ToString::to_string),
         _ => None,
     })
 }

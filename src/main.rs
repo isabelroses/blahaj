@@ -1,8 +1,8 @@
 mod commands;
 mod event_handler;
+mod nixpkgs_db;
 mod types;
 mod utils;
-mod nixpkgs_db;
 
 use dotenv::dotenv;
 use std::env;
@@ -13,6 +13,7 @@ use poise::serenity_prelude::{
 };
 
 #[tokio::main]
+#[allow(clippy::too_many_lines)]
 async fn main() -> Result<()> {
     // Load the .env file
     dotenv().ok();

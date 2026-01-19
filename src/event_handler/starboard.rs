@@ -1,39 +1,8 @@
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{Colour, Context, EditMessage, FullEvent, ReactionType};
-use rusqlite::Connection;
-use std::sync::{LazyLock, Mutex};
 
 use crate::types::Data;
-
-static STARBOARD_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
-    let db_path = crate::utils::get_data_dir().join("starboard.db");
-    let conn = Connection::open(db_path).expect("Failed to open starboard database");
-
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS starred_messages (
-            message_id INTEGER PRIMARY KEY,
-            guild_id INTEGER NOT NULL,
-            channel_id INTEGER NOT NULL,
-            starboard_message_id INTEGER,
-            star_count INTEGER NOT NULL DEFAULT 1,
-            UNIQUE(message_id)
-        )",
-        [],
-    )
-    .expect("Failed to create starred_messages table");
-
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS starboard_config (
-            guild_id INTEGER PRIMARY KEY,
-            channel_id INTEGER NOT NULL,
-            threshold INTEGER NOT NULL DEFAULT 3
-        )",
-        [],
-    )
-    .expect("Failed to create starboard_config table");
-
-    Mutex::new(conn)
-});
+use crate::utils::STARBOARD_DB;
 
 pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()> {
     match event {
@@ -49,6 +18,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 async fn handle_reaction_add(
     ctx: &Context,
     reaction: &poise::serenity_prelude::Reaction,
@@ -63,15 +33,15 @@ async fn handle_reaction_add(
     };
 
     // Get starboard config
-    let config: Option<(u64, i32)> = {
+    let config: Option<(u64, u32)> = {
         let conn = STARBOARD_DB.lock().unwrap();
         conn.query_row(
             "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
-            [guild_id.get() as i64],
+            [guild_id.get().cast_signed()],
             |row| {
                 let channel_id: i64 = row.get(0)?;
                 let threshold: i32 = row.get(1)?;
-                Ok((channel_id as u64, threshold))
+                Ok((channel_id.cast_unsigned(), threshold.cast_unsigned()))
             },
         )
         .ok()
@@ -94,7 +64,7 @@ async fn handle_reaction_add(
         .find(|r| r.reaction_type == ReactionType::Unicode("⭐".to_string()))
         .map_or(0, |r| r.count);
 
-    if star_count < threshold as u64 {
+    if star_count < u64::from(threshold) {
         return Ok(());
     }
 
@@ -103,7 +73,7 @@ async fn handle_reaction_add(
         let conn = STARBOARD_DB.lock().unwrap();
         conn.query_row(
             "SELECT COUNT(*) FROM starred_messages WHERE message_id = ?",
-            [reaction.message_id.get() as i64],
+            [reaction.message_id.get().cast_signed()],
             |row| {
                 let count: i32 = row.get(0)?;
                 Ok(count > 0)
@@ -118,7 +88,10 @@ async fn handle_reaction_add(
             let conn = STARBOARD_DB.lock().unwrap();
             conn.execute(
                 "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
-                [star_count as i64, reaction.message_id.get() as i64],
+                [
+                    star_count.cast_signed(),
+                    reaction.message_id.get().cast_signed(),
+                ],
             )
             .ok();
         }
@@ -128,7 +101,7 @@ async fn handle_reaction_add(
             let conn = STARBOARD_DB.lock().unwrap();
             conn.query_row(
                 "SELECT starboard_message_id FROM starred_messages WHERE message_id = ?",
-                [reaction.message_id.get() as i64],
+                [reaction.message_id.get().cast_signed()],
                 |row| row.get::<_, i64>(0),
             )
             .ok()
@@ -139,11 +112,11 @@ async fn handle_reaction_add(
                 poise::serenity_prelude::ChannelId::new(starboard_channel_id)
                     .message(
                         ctx,
-                        poise::serenity_prelude::MessageId::new(starboard_msg_id as u64),
+                        poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
                     )
                     .await
         {
-            let embed = create_star_embed(&message, star_count as i32);
+            let embed = create_star_embed(&message, star_count);
             starboard_msg
                 .edit(ctx, EditMessage::new().embed(embed))
                 .await
@@ -155,7 +128,7 @@ async fn handle_reaction_add(
 
     // Create starboard message
     let starboard_channel = poise::serenity_prelude::ChannelId::new(starboard_channel_id);
-    let embed = create_star_embed(&message, star_count as i32);
+    let embed = create_star_embed(&message, star_count);
 
     if let Ok(starboard_msg) = starboard_channel
         .send_message(
@@ -174,11 +147,11 @@ async fn handle_reaction_add(
         conn.execute(
             "INSERT INTO starred_messages (message_id, guild_id, channel_id, starboard_message_id, star_count) VALUES (?, ?, ?, ?, ?)",
             [
-                reaction.message_id.get() as i64,
-                guild_id.get() as i64,
-                reaction.channel_id.get() as i64,
-                starboard_msg.id.get() as i64,
-                star_count as i64,
+                reaction.message_id.get().cast_signed(),
+                guild_id.get().cast_signed(),
+                reaction.channel_id.get().cast_signed(),
+                starboard_msg.id.get().cast_signed(),
+                star_count.cast_signed(),
             ],
         ).ok();
     }
@@ -200,15 +173,15 @@ async fn handle_reaction_remove(
     };
 
     // Get starboard config
-    let config: Option<(u64, i32)> = {
+    let config: Option<(u64, u32)> = {
         let conn = STARBOARD_DB.lock().unwrap();
         conn.query_row(
             "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
-            [guild_id.get() as i64],
+            [guild_id.get().cast_signed()],
             |row| {
                 let channel_id: i64 = row.get(0)?;
                 let threshold: i32 = row.get(1)?;
-                Ok((channel_id as u64, threshold))
+                Ok((channel_id.cast_unsigned(), threshold.cast_unsigned()))
             },
         )
         .ok()
@@ -236,7 +209,7 @@ async fn handle_reaction_remove(
         let conn = STARBOARD_DB.lock().unwrap();
         conn.query_row(
             "SELECT starboard_message_id FROM starred_messages WHERE message_id = ?",
-            [reaction.message_id.get() as i64],
+            [reaction.message_id.get().cast_signed()],
             |row| row.get(0),
         )
         .ok()
@@ -246,12 +219,12 @@ async fn handle_reaction_remove(
         return Ok(());
     };
 
-    if star_count < threshold as u64 {
+    if star_count < u64::from(threshold) {
         // Remove from starboard
         poise::serenity_prelude::ChannelId::new(starboard_channel_id)
             .delete_message(
                 ctx,
-                poise::serenity_prelude::MessageId::new(starboard_msg_id as u64),
+                poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
             )
             .await
             .ok();
@@ -259,7 +232,7 @@ async fn handle_reaction_remove(
         let conn = STARBOARD_DB.lock().unwrap();
         conn.execute(
             "DELETE FROM starred_messages WHERE message_id = ?",
-            [reaction.message_id.get() as i64],
+            [reaction.message_id.get().cast_signed()],
         )
         .ok();
     } else {
@@ -268,7 +241,10 @@ async fn handle_reaction_remove(
             let conn = STARBOARD_DB.lock().unwrap();
             conn.execute(
                 "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
-                [star_count as i64, reaction.message_id.get() as i64],
+                [
+                    star_count.cast_signed(),
+                    reaction.message_id.get().cast_signed(),
+                ],
             )
             .ok();
         }
@@ -277,11 +253,11 @@ async fn handle_reaction_remove(
         if let Ok(mut starboard_msg) = poise::serenity_prelude::ChannelId::new(starboard_channel_id)
             .message(
                 ctx,
-                poise::serenity_prelude::MessageId::new(starboard_msg_id as u64),
+                poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
             )
             .await
         {
-            let embed = create_star_embed(&message, star_count as i32);
+            let embed = create_star_embed(&message, star_count);
             starboard_msg
                 .edit(ctx, EditMessage::new().embed(embed))
                 .await
@@ -294,7 +270,7 @@ async fn handle_reaction_remove(
 
 fn create_star_embed(
     message: &poise::serenity_prelude::Message,
-    star_count: i32,
+    star_count: u64,
 ) -> poise::serenity_prelude::CreateEmbed {
     let mut embed = poise::serenity_prelude::CreateEmbed::default()
         .author(
