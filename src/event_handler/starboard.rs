@@ -57,6 +57,11 @@ async fn handle_reaction_add(
         .message(ctx, reaction.message_id)
         .await?;
 
+    // Don't allow starring bot's starboard messages
+    if message.author.bot && reaction.channel_id.get() == starboard_channel_id {
+        return Ok(());
+    }
+
     // Count star reactions
     let star_count = message
         .reactions
