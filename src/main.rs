@@ -1,11 +1,11 @@
 mod commands;
+mod config;
 mod event_handler;
 mod nixpkgs_db;
 mod types;
 mod utils;
 
 use dotenv::dotenv;
-use std::env;
 
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{
@@ -20,10 +20,11 @@ async fn main() -> Result<()> {
 
     // Enable color_eyre beacuse error handling ig
     color_eyre::install()?;
+    let config = config::init()?;
     nixpkgs_db::ensure_nixpkgs_database().await?;
 
     // Configure the client with your Discord bot token in the environment.
-    let token = env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN to be set");
+    let token = config.discord_token.clone();
 
     let intents = GatewayIntents::non_privileged()
         | GatewayIntents::MESSAGE_CONTENT

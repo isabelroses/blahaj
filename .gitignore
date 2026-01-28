@@ -5,3 +5,7 @@ target
 /.idea
 # Database files (stored in /var/lib/blahaj for systemd services)
 /var/lib/blahaj/
+color_me.db
+blahaj.toml
+packages.db
+nixpkgs.hash

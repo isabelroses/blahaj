@@ -2,9 +2,8 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 
-// TODO: figure this out lol
 pub fn get_data_dir() -> PathBuf {
-    PathBuf::from("/var/lib/blahaj")
+    crate::config::get().data_dir.clone()
 }
 
 pub static STARBOARD_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
@@ -18,6 +17,7 @@ pub static STARBOARD_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
             channel_id INTEGER NOT NULL,
             starboard_message_id INTEGER,
             star_count INTEGER NOT NULL DEFAULT 1,
+            posting INTEGER NOT NULL DEFAULT 0,
             UNIQUE(message_id)
         )",
         [],
@@ -34,5 +34,23 @@ pub static STARBOARD_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
     )
     .expect("Failed to create starboard_config table");
 
+    ensure_starboard_schema(&conn).expect("Failed to migrate starboard schema");
+
     Mutex::new(conn)
 });
+
+fn ensure_starboard_schema(conn: &Connection) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare("PRAGMA table_info(starred_messages)")?;
+    let column_names = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    if !column_names.iter().any(|name| name == "posting") {
+        conn.execute(
+            "ALTER TABLE starred_messages ADD COLUMN posting INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+
+    Ok(())
+}

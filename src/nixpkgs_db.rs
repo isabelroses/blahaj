@@ -43,8 +43,7 @@ struct Maintainer {
 }
 
 pub async fn get_latest_nixpkgs_release() -> Result<NixpkgsRelease> {
-    let base_url = std::env::var("NIXPKGS_CHANNEL")
-        .unwrap_or_else(|_| "https://channels.nixos.org/nixpkgs-unstable".to_string());
+    let base_url = crate::config::get().nixpkgs_channel.clone();
 
     let response = reqwest::get(&base_url).await?;
     let html = response.text().await?;

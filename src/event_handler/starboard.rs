@@ -73,24 +73,20 @@ async fn handle_reaction_add(
         return Ok(());
     }
 
-    // Check if already starred
-    let already_starred: bool = {
-        let conn = STARBOARD_DB.lock().unwrap();
-        conn.query_row(
-            "SELECT COUNT(*) FROM starred_messages WHERE message_id = ?",
-            [reaction.message_id.get().cast_signed()],
-            |row| {
-                let count: i32 = row.get(0)?;
-                Ok(count > 0)
-            },
-        )
-        .unwrap_or(false)
-    };
+    let mut should_send = false;
+    let mut edit_starboard_msg_id: Option<i64> = None;
 
-    if already_starred {
-        // Update the star count
-        {
-            let conn = STARBOARD_DB.lock().unwrap();
+    {
+        let conn = STARBOARD_DB.lock().unwrap();
+        let existing: Option<(Option<i64>, i64)> = conn
+            .query_row(
+                "SELECT starboard_message_id, posting FROM starred_messages WHERE message_id = ?",
+                [reaction.message_id.get().cast_signed()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .ok();
+
+        if let Some((starboard_msg_id, posting)) = existing {
             conn.execute(
                 "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
                 [
@@ -99,66 +95,84 @@ async fn handle_reaction_add(
                 ],
             )
             .ok();
-        }
 
-        // Update the starboard message if it exists
-        let starboard_msg_id: Option<i64> = {
-            let conn = STARBOARD_DB.lock().unwrap();
-            conn.query_row(
-                "SELECT starboard_message_id FROM starred_messages WHERE message_id = ?",
-                [reaction.message_id.get().cast_signed()],
-                |row| row.get::<_, i64>(0),
-            )
-            .ok()
-        };
-
-        if let Some(starboard_msg_id) = starboard_msg_id
-            && let Ok(mut starboard_msg) =
-                poise::serenity_prelude::ChannelId::new(starboard_channel_id)
-                    .message(
-                        ctx,
-                        poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
+            if let Some(starboard_msg_id) = starboard_msg_id {
+                edit_starboard_msg_id = Some(starboard_msg_id);
+            } else if posting == 0 {
+                let updated = conn
+                    .execute(
+                        "UPDATE starred_messages SET posting = 1 WHERE message_id = ?",
+                        [reaction.message_id.get().cast_signed()],
                     )
-                    .await
-        {
-            let embed = create_star_embed(&message, star_count);
-            starboard_msg
-                .edit(ctx, EditMessage::new().embed(embed))
-                .await
+                    .ok();
+                should_send = matches!(updated, Some(rows) if rows > 0);
+            }
+        } else {
+            let inserted = conn
+                .execute(
+                "INSERT INTO starred_messages (message_id, guild_id, channel_id, starboard_message_id, star_count, posting) VALUES (?, ?, ?, NULL, ?, 1)",
+                [
+                    reaction.message_id.get().cast_signed(),
+                    guild_id.get().cast_signed(),
+                    reaction.channel_id.get().cast_signed(),
+                    star_count.cast_signed(),
+                ],
+                )
                 .ok();
+            should_send = matches!(inserted, Some(rows) if rows > 0);
         }
-
-        return Ok(());
     }
 
-    // Create starboard message
-    let starboard_channel = poise::serenity_prelude::ChannelId::new(starboard_channel_id);
-    let embed = create_star_embed(&message, star_count);
-
-    if let Ok(starboard_msg) = starboard_channel
-        .send_message(
-            ctx,
-            poise::serenity_prelude::CreateMessage::new()
-                .embed(embed)
-                .content(format!(
-                    "https://discord.com/channels/{}/{}/{}",
-                    guild_id, reaction.channel_id, reaction.message_id
-                )),
-        )
-        .await
+    if let Some(starboard_msg_id) = edit_starboard_msg_id
+        && let Ok(mut starboard_msg) = poise::serenity_prelude::ChannelId::new(starboard_channel_id)
+            .message(
+                ctx,
+                poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
+            )
+            .await
     {
-        // Save to database
-        let conn = STARBOARD_DB.lock().unwrap();
-        conn.execute(
-            "INSERT INTO starred_messages (message_id, guild_id, channel_id, starboard_message_id, star_count) VALUES (?, ?, ?, ?, ?)",
-            [
-                reaction.message_id.get().cast_signed(),
-                guild_id.get().cast_signed(),
-                reaction.channel_id.get().cast_signed(),
-                starboard_msg.id.get().cast_signed(),
-                star_count.cast_signed(),
-            ],
-        ).ok();
+        let embed = create_star_embed(&message, star_count);
+        starboard_msg
+            .edit(ctx, EditMessage::new().embed(embed))
+            .await
+            .ok();
+    }
+
+    if should_send {
+        // Create starboard message
+        let starboard_channel = poise::serenity_prelude::ChannelId::new(starboard_channel_id);
+        let embed = create_star_embed(&message, star_count);
+
+        if let Ok(starboard_msg) = starboard_channel
+            .send_message(
+                ctx,
+                poise::serenity_prelude::CreateMessage::new()
+                    .embed(embed)
+                    .content(format!(
+                        "https://discord.com/channels/{}/{}/{}",
+                        guild_id, reaction.channel_id, reaction.message_id
+                    )),
+            )
+            .await
+        {
+            let conn = STARBOARD_DB.lock().unwrap();
+            conn.execute(
+                "UPDATE starred_messages SET starboard_message_id = ?, posting = 0, star_count = ? WHERE message_id = ?",
+                [
+                    starboard_msg.id.get().cast_signed(),
+                    star_count.cast_signed(),
+                    reaction.message_id.get().cast_signed(),
+                ],
+            )
+            .ok();
+        } else {
+            let conn = STARBOARD_DB.lock().unwrap();
+            conn.execute(
+                "UPDATE starred_messages SET posting = 0 WHERE message_id = ?",
+                [reaction.message_id.get().cast_signed()],
+            )
+            .ok();
+        }
     }
 
     Ok(())
@@ -210,36 +224,66 @@ async fn handle_reaction_remove(
         .map_or(0, |r| r.count);
 
     // Check if in starboard
-    let starboard_msg_id: Option<i64> = {
+    let starboard_entry: Option<(Option<i64>, i64)> = {
         let conn = STARBOARD_DB.lock().unwrap();
         conn.query_row(
-            "SELECT starboard_message_id FROM starred_messages WHERE message_id = ?",
+            "SELECT starboard_message_id, posting FROM starred_messages WHERE message_id = ?",
             [reaction.message_id.get().cast_signed()],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .ok()
     };
 
-    let Some(starboard_msg_id) = starboard_msg_id else {
+    let Some((starboard_msg_id, posting)) = starboard_entry else {
         return Ok(());
     };
 
     if star_count < u64::from(threshold) {
-        // Remove from starboard
-        poise::serenity_prelude::ChannelId::new(starboard_channel_id)
-            .delete_message(
-                ctx,
-                poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
-            )
-            .await
-            .ok();
+        if let Some(starboard_msg_id) = starboard_msg_id {
+            let deleted = poise::serenity_prelude::ChannelId::new(starboard_channel_id)
+                .delete_message(
+                    ctx,
+                    poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
+                )
+                .await
+                .is_ok();
 
-        let conn = STARBOARD_DB.lock().unwrap();
-        conn.execute(
-            "DELETE FROM starred_messages WHERE message_id = ?",
-            [reaction.message_id.get().cast_signed()],
-        )
-        .ok();
+            if deleted {
+                let conn = STARBOARD_DB.lock().unwrap();
+                conn.execute(
+                    "DELETE FROM starred_messages WHERE message_id = ?",
+                    [reaction.message_id.get().cast_signed()],
+                )
+                .ok();
+            } else {
+                let conn = STARBOARD_DB.lock().unwrap();
+                conn.execute(
+                    "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
+                    [
+                        star_count.cast_signed(),
+                        reaction.message_id.get().cast_signed(),
+                    ],
+                )
+                .ok();
+            }
+        } else if posting == 0 {
+            let conn = STARBOARD_DB.lock().unwrap();
+            conn.execute(
+                "DELETE FROM starred_messages WHERE message_id = ?",
+                [reaction.message_id.get().cast_signed()],
+            )
+            .ok();
+        } else {
+            let conn = STARBOARD_DB.lock().unwrap();
+            conn.execute(
+                "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
+                [
+                    star_count.cast_signed(),
+                    reaction.message_id.get().cast_signed(),
+                ],
+            )
+            .ok();
+        }
     } else {
         // Update star count
         {
@@ -255,12 +299,14 @@ async fn handle_reaction_remove(
         }
 
         // Update the starboard message
-        if let Ok(mut starboard_msg) = poise::serenity_prelude::ChannelId::new(starboard_channel_id)
-            .message(
-                ctx,
-                poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
-            )
-            .await
+        if let Some(starboard_msg_id) = starboard_msg_id
+            && let Ok(mut starboard_msg) =
+                poise::serenity_prelude::ChannelId::new(starboard_channel_id)
+                    .message(
+                        ctx,
+                        poise::serenity_prelude::MessageId::new(starboard_msg_id.cast_unsigned()),
+                    )
+                    .await
         {
             let embed = create_star_embed(&message, star_count);
             starboard_msg
