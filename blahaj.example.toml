@@ -1,0 +1,12 @@
+# Discord bot token (required)
+discord_token = "YOUR_DISCORD_TOKEN"
+
+# GitHub token for nixpkgs commands (required)
+github_token = "YOUR_GITHUB_TOKEN"
+
+# Directory for SQLite DBs and nixpkgs hash file
+# Can also be set via BLAHAJ_DATA_DIR
+#data_dir = "/var/lib/blahaj"
+
+# Nixpkgs channel base URL
+#nixpkgs_channel = "https://channels.nixos.org/nixpkgs-unstable"

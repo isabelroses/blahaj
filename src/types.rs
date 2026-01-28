@@ -1,5 +1,5 @@
 use reqwest::Client;
-use std::{convert::AsRef, env};
+use std::convert::AsRef;
 
 #[derive(Debug)]
 // User data, which is stored and accessible in all command invocations
@@ -15,7 +15,7 @@ impl Data {
                 .user_agent("isabelroses/blahaj")
                 .build()
                 .unwrap(),
-            github_token: env::var("GITHUB_TOKEN").expect("GITHUB_TOKEN not set"),
+            github_token: crate::config::get().github_token.clone(),
         }
     }
 }
