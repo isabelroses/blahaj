@@ -15,8 +15,8 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
             let url = capture.as_str();
 
             let modified_url = url
-                .replace("https://x.com", "https://girlcockx.com")
-                .replace("https://twitter.com", "https://fxtwitter.com")
+                .replace("https://x.com", "https://vxtwitter.com")
+                .replace("https://twitter.com", "https://vxtwitter.com")
                 .replace("https://www.reddit.com", "https://rxddit.com")
                 .replace("https://reddit.com", "https://rxddit.com")
                 .replace("https://www.instagram.com", "https://kkinstagram.com")
