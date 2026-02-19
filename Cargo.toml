@@ -29,6 +29,9 @@ serde_json = "1.0.149"
 serenity = "0.12.5"
 sha2 = "0.10.9"
 simd-json = { version = "0.17.0", features = ["serde"] }
+typst = "0.14.2"
+typst-render = "0.14.2"
+typst-kit = { version = "0.14.2", features = ["embed-fonts"] }
 
 [dependencies.reqwest]
 version = "0.12.12"
