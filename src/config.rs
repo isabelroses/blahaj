@@ -1,4 +1,4 @@
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use confique::Config;
 use std::path::PathBuf;
 use std::sync::OnceLock;

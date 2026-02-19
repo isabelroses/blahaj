@@ -45,6 +45,7 @@ async fn main() -> Result<()> {
             commands::misc::starboard::starboard_enable(),
             commands::misc::starboard::starboard_disable(),
             commands::misc::starboard::starboard_config(),
+            commands::misc::typst::typst(),
             // moderation commands
             commands::moderation::ban::ban(),
             commands::moderation::kick::kick(),
