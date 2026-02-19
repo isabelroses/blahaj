@@ -110,6 +110,9 @@ pub async fn typst(
                 eyre!("Compilation error:\n{}", messages.join("\n"))
             })?;
 
+        if document.pages.is_empty() {
+            return Err(eyre!("Compilation produced no pages"));
+        }
         let page = &document.pages[0];
         let pixmap = typst_render::render(page, 9.0);
         pixmap
