@@ -58,6 +58,7 @@ async fn main() -> Result<()> {
             // fun commands
             commands::fun::chance::roll(),
             commands::fun::kittysay::kittysay(),
+            commands::fun::genz::genz(),
             commands::fun::bottom::topify(),
             commands::fun::bottom::bottomify(),
             commands::fun::pet::pet(),

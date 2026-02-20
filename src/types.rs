@@ -6,6 +6,7 @@ use std::convert::AsRef;
 pub struct Data {
     pub client: Client,
     pub github_token: String,
+    pub kagi_cookie: Option<String>,
 }
 
 impl Data {
@@ -16,6 +17,7 @@ impl Data {
                 .build()
                 .unwrap(),
             github_token: crate::config::get().github_token.clone(),
+            kagi_cookie: crate::config::get().kagi_cookie.clone(),
         }
     }
 }
