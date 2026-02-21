@@ -131,7 +131,7 @@ async fn handle_reaction_add(
             )
             .await
     {
-        let embed = create_star_embed(&message, star_count);
+        let embed = create_star_embed(ctx, &message, star_count).await;
         starboard_msg
             .edit(ctx, EditMessage::new().embed(embed))
             .await
@@ -141,7 +141,7 @@ async fn handle_reaction_add(
     if should_send {
         // Create starboard message
         let starboard_channel = poise::serenity_prelude::ChannelId::new(starboard_channel_id);
-        let embed = create_star_embed(&message, star_count);
+        let embed = create_star_embed(ctx, &message, star_count).await;
 
         if let Ok(starboard_msg) = starboard_channel
             .send_message(
@@ -308,7 +308,7 @@ async fn handle_reaction_remove(
                     )
                     .await
         {
-            let embed = create_star_embed(&message, star_count);
+            let embed = create_star_embed(ctx, &message, star_count).await;
             starboard_msg
                 .edit(ctx, EditMessage::new().embed(embed))
                 .await
@@ -319,7 +319,8 @@ async fn handle_reaction_remove(
     Ok(())
 }
 
-fn create_star_embed(
+async fn create_star_embed(
+    ctx: &Context,
     message: &poise::serenity_prelude::Message,
     star_count: u64,
 ) -> poise::serenity_prelude::CreateEmbed {
@@ -335,9 +336,82 @@ fn create_star_embed(
         .colour(Colour::GOLD)
         .timestamp(message.timestamp);
 
+    if let Some(message_reference) = &message.message_reference
+        && let Some(reference_message_id) = message_reference.message_id
+    {
+        let reference_details = if let Some(reference_message) =
+            message.referenced_message.as_deref()
+        {
+            Some((
+                reference_message.author.name.clone(),
+                summarized_message_content(
+                    &reference_message.content,
+                    !reference_message.attachments.is_empty(),
+                ),
+            ))
+        } else {
+            let reference_channel_id = message_reference.channel_id;
+            reference_channel_id
+                .message(ctx, reference_message_id)
+                .await
+                .ok()
+                .map(|reference_message| {
+                    (
+                        reference_message.author.name,
+                        summarized_message_content(
+                            &reference_message.content,
+                            !reference_message.attachments.is_empty(),
+                        ),
+                    )
+                })
+        };
+
+        if let Some((reference_author_name, reference_preview)) = reference_details {
+            let reference_channel_id = message_reference.channel_id;
+            let reference_url = format!(
+                "https://discord.com/channels/{}/{}/{}",
+                message
+                    .guild_id
+                    .map_or_else(|| "@me".to_string(), |guild_id| guild_id.get().to_string()),
+                reference_channel_id,
+                reference_message_id
+            );
+
+            embed = embed.field(
+                "Replying to",
+                format!(
+                    "**{}**\n{}\n[Jump to referenced message]({reference_url})",
+                    reference_author_name, reference_preview
+                ),
+                false,
+            );
+        }
+    }
+
     if let Some(first_attachment) = message.attachments.first() {
         embed = embed.image(&first_attachment.url);
     }
 
     embed
+}
+
+fn summarized_message_content(content: &str, has_attachments: bool) -> String {
+    let collapsed = content.split_whitespace().collect::<Vec<_>>().join(" ");
+    if collapsed.is_empty() {
+        return if has_attachments {
+            "[attachment-only message]".to_string()
+        } else {
+            "[no text content]".to_string()
+        };
+    }
+
+    let preview_limit = 300;
+    let char_count = collapsed.chars().count();
+    if char_count > preview_limit {
+        let mut truncated = collapsed.chars().take(preview_limit).collect::<String>();
+        truncated.push('…');
+        truncated
+    } else {
+        collapsed
+    }
 }
