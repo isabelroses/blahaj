@@ -16,6 +16,37 @@ use logic::{
 };
 use reply::safe_reply;
 
+fn trim_optional_text(input: Option<String>) -> Option<String> {
+    input.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    })
+}
+
+fn format_group_header(
+    relationship_type: &str,
+    emoji: Option<&str>,
+    description: Option<&str>,
+) -> String {
+    let mut base = String::new();
+    if let Some(emoji) = emoji {
+        base.push_str(emoji);
+        base.push(' ');
+    }
+    base.push('`');
+    base.push_str(relationship_type);
+    base.push('`');
+    if let Some(description) = description {
+        base.push_str(" - ");
+        base.push_str(description);
+    }
+    base
+}
+
 #[poise::command(
     slash_command,
     guild_only,
@@ -36,6 +67,7 @@ pub async fn help(ctx: Context<'_>) -> Result<()> {
         "**How work**",
         "- Relationship groups are identified by an ID (like `#12`).",
         "- Types are free-form like `marriage`, `friend`, `adopted-sibling`.",
+        "- Groups can have optional emoji + description metadata.",
         "- `make` sends an invite. The other user must `accept`.",
         "",
         "**How to use**",
@@ -44,7 +76,7 @@ pub async fn help(ctx: Context<'_>) -> Result<()> {
         "3. Accept with `/relationship accept relationship_id:<id>`",
         "",
         "**Commands**",
-        "- `/relationship make <type> <user> [relationship_id]`: create/invite.",
+        "- `/relationship make <type> <user> [relationship_id] [emoji] [description]`: create/invite.",
         "- `/relationship inbox`: show your pending invites.",
         "- `/relationship accept <relationship_id>`: join invited group.",
         "- `/relationship decline <relationship_id>`: decline invite.",
@@ -73,6 +105,8 @@ pub async fn make(
     #[description = "Existing relationship ID to invite into (optional)"] relationship_id: Option<
         i64,
     >,
+    #[description = "Optional emoji for new group (e.g. 💍)"] emoji: Option<String>,
+    #[description = "Optional description for new group"] description: Option<String>,
 ) -> Result<()> {
     let Some(guild_id) = ctx.guild_id() else {
         ctx.send(
@@ -116,6 +150,9 @@ pub async fn make(
         }
     };
 
+    let emoji = trim_optional_text(emoji);
+    let description = trim_optional_text(description);
+
     let relationship_result = {
         let conn = RELATIONSHIP_DB.lock().unwrap();
         resolve_relationship_for_make(
@@ -124,6 +161,8 @@ pub async fn make(
             caller_id,
             &normalized_type,
             relationship_id,
+            emoji.as_deref(),
+            description.as_deref(),
         )?
     };
 
@@ -440,21 +479,22 @@ pub async fn list(
         return Ok(());
     }
 
-    let mut grouped: BTreeMap<String, Vec<i64>> = BTreeMap::new();
-    for (relationship_id, relationship_type) in &relationships {
-        grouped
-            .entry(relationship_type.clone())
-            .or_default()
-            .push(*relationship_id);
+    let mut grouped: BTreeMap<String, Vec<(i64, Option<String>, Option<String>)>> = BTreeMap::new();
+    for (relationship_id, relationship_type, emoji, description) in &relationships {
+        grouped.entry(relationship_type.clone()).or_default().push((
+            *relationship_id,
+            emoji.clone(),
+            description.clone(),
+        ));
     }
 
     let mut lines = vec![format!("**Active relationships for <@{target_id}>**")];
 
     {
         let conn = RELATIONSHIP_DB.lock().unwrap();
-        for (relationship_type, ids) in grouped {
+        for (relationship_type, rows) in grouped {
             lines.push(format!("\n`{relationship_type}`"));
-            for relationship_id in ids {
+            for (relationship_id, emoji, description) in rows {
                 let members = active_member_ids(&conn, relationship_id)?;
                 let member_mentions = members
                     .iter()
@@ -462,7 +502,12 @@ pub async fn list(
                     .collect::<Vec<_>>()
                     .join(", ");
 
-                lines.push(format!("- #{relationship_id}: {member_mentions}"));
+                let header = format_group_header(
+                    &relationship_type,
+                    emoji.as_deref(),
+                    description.as_deref(),
+                );
+                lines.push(format!("- #{relationship_id} {header}: {member_mentions}"));
             }
         }
     }
@@ -502,10 +547,15 @@ pub async fn inbox(ctx: Context<'_>) -> Result<()> {
 
     let mut lines = vec!["**Your pending relationship invites**".to_string()];
     for invite in invites {
+        let header = format_group_header(
+            &invite.relationship_type,
+            invite.emoji.as_deref(),
+            invite.description.as_deref(),
+        );
         lines.push(format!(
-            "- `#{}` `{}` from <@{}> (created <t:{}:R>)\n  Accept: `/relationship accept relationship_id:{}` | Decline: `/relationship decline relationship_id:{}`",
+            "- `#{}` {} from <@{}> (created <t:{}:R>)\n  Accept: `/relationship accept relationship_id:{}` | Decline: `/relationship decline relationship_id:{}`",
             invite.relationship_id,
-            invite.relationship_type,
+            header,
             invite.inviter_id,
             invite.created_at,
             invite.relationship_id,
@@ -551,9 +601,14 @@ pub async fn groups(ctx: Context<'_>) -> Result<()> {
             .collect::<Vec<_>>()
             .join(", ");
 
+        let header = format_group_header(
+            &group.relationship_type,
+            group.emoji.as_deref(),
+            group.description.as_deref(),
+        );
         lines.push(format!(
-            "- `#{}` `{}`: {}",
-            group.relationship_id, group.relationship_type, members
+            "- `#{}` {}: {}",
+            group.relationship_id, header, members
         ));
     }
 

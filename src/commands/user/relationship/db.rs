@@ -10,6 +10,8 @@ pub static RELATIONSHIP_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             guild_id INTEGER NOT NULL,
             relationship_type TEXT NOT NULL,
+            emoji TEXT,
+            description TEXT,
             status TEXT NOT NULL CHECK(status IN ('active', 'ended')) DEFAULT 'active',
             created_by INTEGER NOT NULL,
             created_at INTEGER NOT NULL,
@@ -75,5 +77,24 @@ pub static RELATIONSHIP_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
     )
     .expect("Failed to create invites relationship index");
 
+    ensure_relationship_schema(&conn).expect("Failed to migrate relationship schema");
+
     Mutex::new(conn)
 });
+
+fn ensure_relationship_schema(conn: &Connection) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare("PRAGMA table_info(relationships)")?;
+    let column_names = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    if !column_names.iter().any(|name| name == "emoji") {
+        conn.execute("ALTER TABLE relationships ADD COLUMN emoji TEXT", [])?;
+    }
+
+    if !column_names.iter().any(|name| name == "description") {
+        conn.execute("ALTER TABLE relationships ADD COLUMN description TEXT", [])?;
+    }
+
+    Ok(())
+}

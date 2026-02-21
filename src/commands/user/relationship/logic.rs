@@ -11,6 +11,8 @@ pub struct MakeResolution {
 pub struct InviteInboxItem {
     pub relationship_id: i64,
     pub relationship_type: String,
+    pub emoji: Option<String>,
+    pub description: Option<String>,
     pub inviter_id: u64,
     pub created_at: i64,
 }
@@ -19,6 +21,8 @@ pub struct InviteInboxItem {
 pub struct GroupSummary {
     pub relationship_id: i64,
     pub relationship_type: String,
+    pub emoji: Option<String>,
+    pub description: Option<String>,
     pub member_ids: Vec<u64>,
 }
 
@@ -55,6 +59,8 @@ pub fn resolve_relationship_for_make(
     caller_id: u64,
     relationship_type: &str,
     explicit_relationship_id: Option<i64>,
+    emoji: Option<&str>,
+    description: Option<&str>,
 ) -> Result<std::result::Result<MakeResolution, String>> {
     if let Some(explicit_id) = explicit_relationship_id {
         let exists_and_allowed = conn
@@ -113,7 +119,14 @@ pub fn resolve_relationship_for_make(
         }));
     }
 
-    let new_id = create_relationship(conn, guild_id, caller_id, relationship_type)?;
+    let new_id = create_relationship(
+        conn,
+        guild_id,
+        caller_id,
+        relationship_type,
+        emoji,
+        description,
+    )?;
     add_active_member(conn, new_id, caller_id)?;
 
     Ok(Ok(MakeResolution {
@@ -292,9 +305,9 @@ pub fn list_active_relationships_for_user(
     conn: &Connection,
     guild_id: u64,
     user_id: u64,
-) -> Result<Vec<(i64, String)>> {
+) -> Result<Vec<(i64, String, Option<String>, Option<String>)>> {
     let mut stmt = conn.prepare(
-        "SELECT r.id, r.relationship_type
+        "SELECT r.id, r.relationship_type, r.emoji, r.description
          FROM relationships r
          INNER JOIN relationship_members m ON m.relationship_id = r.id
          WHERE r.guild_id = ?
@@ -309,7 +322,9 @@ pub fn list_active_relationships_for_user(
         |row| {
             let relationship_id: i64 = row.get(0)?;
             let relationship_type: String = row.get(1)?;
-            Ok((relationship_id, relationship_type))
+            let emoji: Option<String> = row.get(2)?;
+            let description: Option<String> = row.get(3)?;
+            Ok((relationship_id, relationship_type, emoji, description))
         },
     )?;
 
@@ -327,7 +342,7 @@ pub fn list_pending_invites_for_user(
     user_id: u64,
 ) -> Result<Vec<InviteInboxItem>> {
     let mut stmt = conn.prepare(
-        "SELECT i.relationship_id, r.relationship_type, i.inviter_id, i.created_at
+        "SELECT i.relationship_id, r.relationship_type, r.emoji, r.description, i.inviter_id, i.created_at
          FROM relationship_invites i
          INNER JOIN relationships r ON r.id = i.relationship_id
          WHERE r.guild_id = ?
@@ -342,11 +357,15 @@ pub fn list_pending_invites_for_user(
         |row| {
             let relationship_id: i64 = row.get(0)?;
             let relationship_type: String = row.get(1)?;
-            let inviter_id: i64 = row.get(2)?;
-            let created_at: i64 = row.get(3)?;
+            let emoji: Option<String> = row.get(2)?;
+            let description: Option<String> = row.get(3)?;
+            let inviter_id: i64 = row.get(4)?;
+            let created_at: i64 = row.get(5)?;
             Ok(InviteInboxItem {
                 relationship_id,
                 relationship_type,
+                emoji,
+                description,
                 inviter_id: inviter_id.cast_unsigned(),
                 created_at,
             })
@@ -366,7 +385,7 @@ pub fn list_active_relationship_groups(
     guild_id: u64,
 ) -> Result<Vec<GroupSummary>> {
     let mut stmt = conn.prepare(
-        "SELECT id, relationship_type
+        "SELECT id, relationship_type, emoji, description
          FROM relationships
          WHERE guild_id = ?
            AND status = 'active'
@@ -376,16 +395,20 @@ pub fn list_active_relationship_groups(
     let rows = stmt.query_map([guild_id.cast_signed()], |row| {
         let relationship_id: i64 = row.get(0)?;
         let relationship_type: String = row.get(1)?;
-        Ok((relationship_id, relationship_type))
+        let emoji: Option<String> = row.get(2)?;
+        let description: Option<String> = row.get(3)?;
+        Ok((relationship_id, relationship_type, emoji, description))
     })?;
 
     let mut groups = Vec::new();
     for row in rows {
-        let (relationship_id, relationship_type) = row?;
+        let (relationship_id, relationship_type, emoji, description) = row?;
         let member_ids = active_member_ids(conn, relationship_id)?;
         groups.push(GroupSummary {
             relationship_id,
             relationship_type,
+            emoji,
+            description,
             member_ids,
         });
     }
@@ -423,13 +446,17 @@ fn create_relationship(
     guild_id: u64,
     created_by: u64,
     relationship_type: &str,
+    emoji: Option<&str>,
+    description: Option<&str>,
 ) -> Result<i64> {
     conn.execute(
-        "INSERT INTO relationships (guild_id, relationship_type, status, created_by, created_at)
-         VALUES (?, ?, 'active', ?, ?)",
+        "INSERT INTO relationships (guild_id, relationship_type, emoji, description, status, created_by, created_at)
+         VALUES (?, ?, ?, ?, 'active', ?, ?)",
         params![
             guild_id.cast_signed(),
             relationship_type,
+            emoji,
+            description,
             created_by.cast_signed(),
             now_ts(),
         ],
