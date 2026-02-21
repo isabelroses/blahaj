@@ -10,3 +10,4 @@ blahaj.toml
 packages.db
 nixpkgs.hash
 /starboard.db
+/relationship.db

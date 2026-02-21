@@ -339,32 +339,31 @@ async fn create_star_embed(
     if let Some(message_reference) = &message.message_reference
         && let Some(reference_message_id) = message_reference.message_id
     {
-        let reference_details = if let Some(reference_message) =
-            message.referenced_message.as_deref()
-        {
-            Some((
-                reference_message.author.name.clone(),
-                summarized_message_content(
-                    &reference_message.content,
-                    !reference_message.attachments.is_empty(),
-                ),
-            ))
-        } else {
-            let reference_channel_id = message_reference.channel_id;
-            reference_channel_id
-                .message(ctx, reference_message_id)
-                .await
-                .ok()
-                .map(|reference_message| {
-                    (
-                        reference_message.author.name,
-                        summarized_message_content(
-                            &reference_message.content,
-                            !reference_message.attachments.is_empty(),
-                        ),
-                    )
-                })
-        };
+        let reference_details =
+            if let Some(reference_message) = message.referenced_message.as_deref() {
+                Some((
+                    reference_message.author.name.clone(),
+                    summarized_message_content(
+                        &reference_message.content,
+                        !reference_message.attachments.is_empty(),
+                    ),
+                ))
+            } else {
+                let reference_channel_id = message_reference.channel_id;
+                reference_channel_id
+                    .message(ctx, reference_message_id)
+                    .await
+                    .ok()
+                    .map(|reference_message| {
+                        (
+                            reference_message.author.name,
+                            summarized_message_content(
+                                &reference_message.content,
+                                !reference_message.attachments.is_empty(),
+                            ),
+                        )
+                    })
+            };
 
         if let Some((reference_author_name, reference_preview)) = reference_details {
             let reference_channel_id = message_reference.channel_id;

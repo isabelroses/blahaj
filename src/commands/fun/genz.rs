@@ -163,6 +163,7 @@ pub async fn genz(
         .await
         .map_err(|e| eyre!("Failed to parse Kagi Translate response: {e}"))?;
 
-    ctx.say(format!("> {}\n\"{}\"", input, body.translation)).await?;
+    ctx.say(format!("> {}\n\"{}\"", input, body.translation))
+        .await?;
     Ok(())
 }
