@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::Context;
 
-static DISCORD_MESSAGE_LINK_REGEX: Lazy<Regex> = Lazy::new(|| {
+static DISCORD_MESSAGE_LINK_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"^https?://(?:canary\.|ptb\.)?discord\.com/channels/(\d+)/(\d+)/(\d+)$")
         .expect("valid discord message link regex")
 });

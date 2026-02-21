@@ -379,8 +379,7 @@ async fn create_star_embed(
             embed = embed.field(
                 "Replying to",
                 format!(
-                    "**{}**\n{}\n[Jump to referenced message]({reference_url})",
-                    reference_author_name, reference_preview
+                    "**{reference_author_name}**\n{reference_preview}\n[Jump to referenced message]({reference_url})"
                 ),
                 false,
             );
