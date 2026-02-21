@@ -7,6 +7,21 @@ pub struct MakeResolution {
     pub created_new_group: bool,
 }
 
+#[derive(Debug)]
+pub struct InviteInboxItem {
+    pub relationship_id: i64,
+    pub relationship_type: String,
+    pub inviter_id: u64,
+    pub created_at: i64,
+}
+
+#[derive(Debug)]
+pub struct GroupSummary {
+    pub relationship_id: i64,
+    pub relationship_type: String,
+    pub member_ids: Vec<u64>,
+}
+
 pub fn normalize_relationship_type(raw: &str) -> Result<String> {
     let trimmed = raw.trim().to_lowercase();
     if trimmed.is_empty() {
@@ -304,6 +319,78 @@ pub fn list_active_relationships_for_user(
     }
 
     Ok(values)
+}
+
+pub fn list_pending_invites_for_user(
+    conn: &Connection,
+    guild_id: u64,
+    user_id: u64,
+) -> Result<Vec<InviteInboxItem>> {
+    let mut stmt = conn.prepare(
+        "SELECT i.relationship_id, r.relationship_type, i.inviter_id, i.created_at
+         FROM relationship_invites i
+         INNER JOIN relationships r ON r.id = i.relationship_id
+         WHERE r.guild_id = ?
+           AND i.invitee_id = ?
+           AND i.status = 'pending'
+           AND r.status = 'active'
+         ORDER BY i.created_at ASC, i.relationship_id ASC",
+    )?;
+
+    let rows = stmt.query_map(
+        params![guild_id.cast_signed(), user_id.cast_signed()],
+        |row| {
+            let relationship_id: i64 = row.get(0)?;
+            let relationship_type: String = row.get(1)?;
+            let inviter_id: i64 = row.get(2)?;
+            let created_at: i64 = row.get(3)?;
+            Ok(InviteInboxItem {
+                relationship_id,
+                relationship_type,
+                inviter_id: inviter_id.cast_unsigned(),
+                created_at,
+            })
+        },
+    )?;
+
+    let mut values = Vec::new();
+    for row in rows {
+        values.push(row?);
+    }
+
+    Ok(values)
+}
+
+pub fn list_active_relationship_groups(
+    conn: &Connection,
+    guild_id: u64,
+) -> Result<Vec<GroupSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, relationship_type
+         FROM relationships
+         WHERE guild_id = ?
+           AND status = 'active'
+         ORDER BY relationship_type ASC, id ASC",
+    )?;
+
+    let rows = stmt.query_map([guild_id.cast_signed()], |row| {
+        let relationship_id: i64 = row.get(0)?;
+        let relationship_type: String = row.get(1)?;
+        Ok((relationship_id, relationship_type))
+    })?;
+
+    let mut groups = Vec::new();
+    for row in rows {
+        let (relationship_id, relationship_type) = row?;
+        let member_ids = active_member_ids(conn, relationship_id)?;
+        groups.push(GroupSummary {
+            relationship_id,
+            relationship_type,
+            member_ids,
+        });
+    }
+
+    Ok(groups)
 }
 
 pub fn active_member_ids(conn: &Connection, relationship_id: i64) -> Result<Vec<u64>> {

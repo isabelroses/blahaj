@@ -10,17 +10,56 @@ use std::collections::BTreeMap;
 use db::RELATIONSHIP_DB;
 use logic::{
     accept_invite, active_member_ids, decline_invite, has_pending_invite, is_active_member,
-    leave_relationship, list_active_relationships_for_user, normalize_relationship_type,
-    resolve_relationship_for_make, shared_relationship_ids, try_create_invite,
+    leave_relationship, list_active_relationship_groups, list_active_relationships_for_user,
+    list_pending_invites_for_user, normalize_relationship_type, resolve_relationship_for_make,
+    shared_relationship_ids, try_create_invite,
 };
 use reply::safe_reply;
 
 #[poise::command(
     slash_command,
     guild_only,
-    subcommands("make", "accept", "decline", "end", "leave", "list")
+    subcommands(
+        "help", "make", "accept", "decline", "end", "leave", "list", "inbox", "groups"
+    )
 )]
 pub async fn relationship(_: Context<'_>) -> Result<()> {
+    Ok(())
+}
+
+/// Show how relationship commands work.
+#[poise::command(slash_command, guild_only)]
+pub async fn help(ctx: Context<'_>) -> Result<()> {
+    let text = [
+        "relationshipdb guide :3",
+        "",
+        "**How work**",
+        "- Relationship groups are identified by an ID (like `#12`).",
+        "- Types are free-form like `marriage`, `friend`, `adopted-sibling`.",
+        "- `make` sends an invite. The other user must `accept`.",
+        "",
+        "**How to use**",
+        "1. `/relationship make relationship_type:marriage user:@kitten`",
+        "2. Check invites with `/relationship inbox`",
+        "3. Accept with `/relationship accept relationship_id:<id>`",
+        "",
+        "**Commands**",
+        "- `/relationship make <type> <user> [relationship_id]`: create/invite.",
+        "- `/relationship inbox`: show your pending invites.",
+        "- `/relationship accept <relationship_id>`: join invited group.",
+        "- `/relationship decline <relationship_id>`: decline invite.",
+        "- `/relationship list [user]`: show active groups for a user.",
+        "- `/relationship groups`: show all active groups in this server.",
+        "- `/relationship end <type> <user>`: leave a shared group by type.",
+        "- `/relationship leave <relationship_id>`: leave a group by ID.",
+        "",
+        "**Notes**",
+        "- If `end` is ambiguous (multiple matches), use `leave` with an ID.",
+        "- If a group drops below 2 active members, it auto-ends.",
+    ]
+    .join("\n");
+
+    ctx.send(safe_reply().content(text).ephemeral(true)).await?;
     Ok(())
 }
 
@@ -426,6 +465,96 @@ pub async fn list(
                 lines.push(format!("- #{relationship_id}: {member_mentions}"));
             }
         }
+    }
+
+    ctx.send(safe_reply().content(lines.join("\n"))).await?;
+    Ok(())
+}
+
+/// Show your pending relationship invites.
+#[poise::command(slash_command, guild_only)]
+pub async fn inbox(ctx: Context<'_>) -> Result<()> {
+    let Some(guild_id) = ctx.guild_id() else {
+        ctx.send(
+            safe_reply()
+                .content("This command can only be used in a server.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    };
+
+    let caller_id = ctx.author().id.get();
+    let invites = {
+        let conn = RELATIONSHIP_DB.lock().unwrap();
+        list_pending_invites_for_user(&conn, guild_id.get(), caller_id)?
+    };
+
+    if invites.is_empty() {
+        ctx.send(
+            safe_reply()
+                .content("You have no pending relationship invites.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    let mut lines = vec!["**Your pending relationship invites**".to_string()];
+    for invite in invites {
+        lines.push(format!(
+            "- `#{}` `{}` from <@{}> (created <t:{}:R>)\n  Accept: `/relationship accept relationship_id:{}` | Decline: `/relationship decline relationship_id:{}`",
+            invite.relationship_id,
+            invite.relationship_type,
+            invite.inviter_id,
+            invite.created_at,
+            invite.relationship_id,
+            invite.relationship_id
+        ));
+    }
+
+    ctx.send(safe_reply().content(lines.join("\n")).ephemeral(true))
+        .await?;
+    Ok(())
+}
+
+/// Show all active relationship groups in this server.
+#[poise::command(slash_command, guild_only)]
+pub async fn groups(ctx: Context<'_>) -> Result<()> {
+    let Some(guild_id) = ctx.guild_id() else {
+        ctx.send(
+            safe_reply()
+                .content("This command can only be used in a server.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    };
+
+    let groups = {
+        let conn = RELATIONSHIP_DB.lock().unwrap();
+        list_active_relationship_groups(&conn, guild_id.get())?
+    };
+
+    if groups.is_empty() {
+        ctx.send(safe_reply().content("No active relationship groups exist in this server."))
+            .await?;
+        return Ok(());
+    }
+
+    let mut lines = vec!["**Active relationship groups in this server**".to_string()];
+    for group in groups {
+        let members = group
+            .member_ids
+            .iter()
+            .map(|id| format!("<@{id}>"))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        lines.push(format!(
+            "- `#{}` `{}`: {}",
+            group.relationship_id, group.relationship_type, members
+        ));
     }
 
     ctx.send(safe_reply().content(lines.join("\n"))).await?;
