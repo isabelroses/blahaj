@@ -42,6 +42,7 @@ async fn main() -> Result<()> {
             commands::bot::ping::ping(),
             commands::bot::bot::botinfo(),
             // misc commands
+            commands::misc::avatarsync::avatarsync(),
             commands::misc::crates::crates(),
             commands::misc::starboard::starboard_enable(),
             commands::misc::starboard::starboard_disable(),
@@ -59,7 +60,6 @@ async fn main() -> Result<()> {
             // fun commands
             commands::fun::chance::roll(),
             commands::fun::kittysay::kittysay(),
-            commands::fun::genz::genz(),
             commands::fun::bottom::topify(),
             commands::fun::bottom::bottomify(),
             commands::fun::pet::pet(),

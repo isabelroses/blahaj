@@ -11,6 +11,7 @@ keywords = ["bot", "discord", "serenity"]
 edition = "2024"
 
 [dependencies]
+base64 = "0.22.1"
 bottomify = "1.2.0"
 brotli = "8.0.2"
 chrono = "0.4.43"

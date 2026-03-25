@@ -11,9 +11,6 @@ pub struct AppConfig {
     #[config(env = "GITHUB_TOKEN")]
     pub github_token: String,
 
-    #[config(env = "KAGI_COOKIE")]
-    pub kagi_cookie: Option<String>,
-
     #[config(env = "BLAHAJ_DATA_DIR", default = "/var/lib/blahaj")]
     pub data_dir: PathBuf,
 

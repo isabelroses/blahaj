@@ -11,3 +11,4 @@ packages.db
 nixpkgs.hash
 /starboard.db
 /relationship.db
+/avatar_emojis.db
