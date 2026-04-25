@@ -1,7 +1,7 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::User;
-use rand::Rng;
+use rand::RngExt;
 
 #[poise::command(slash_command)]
 pub async fn height(

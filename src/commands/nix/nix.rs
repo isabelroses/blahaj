@@ -1,6 +1,6 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
-use rand::Rng;
+use rand::RngExt;
 
 #[allow(dead_code)]
 const MEMES: &[&str] = &[
@@ -73,7 +73,7 @@ const MEMES: &[&str] = &[
     interaction_context = "Guild|BotDm|PrivateChannel"
 )]
 pub async fn nix(ctx: Context<'_>) -> Result<()> {
-    let select = rand::rng().random_range(0..=MEMES.len());
+    let select = rand::rng().random_range(0..MEMES.len());
     ctx.say(MEMES[select]).await?;
     Ok(())
 }

@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use kittysay::{FormatOptions, print};
+use kittycore::{FormatOptions, print};
 
 use crate::types::Context;
 
@@ -17,6 +17,7 @@ pub async fn kittysay(
     let opts = FormatOptions {
         think: think.unwrap_or(false),
         width: 45,
+        tab_size: 4,
     };
 
     let output = print(&input, &opts);

@@ -1,6 +1,6 @@
 use crate::types::Context;
 use color_eyre::eyre::Result;
-use rand::Rng;
+use rand::RngExt;
 
 /// Rolls dice based on given # of sides
 #[poise::command(slash_command)]

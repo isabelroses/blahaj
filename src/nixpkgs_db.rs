@@ -1,5 +1,6 @@
 use color_eyre::eyre::Result;
 use sha2::{Digest, Sha256};
+use std::fmt::Write;
 use std::path::Path;
 
 #[derive(Debug)]
@@ -115,7 +116,11 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
 
     let mut hasher = Sha256::new();
     hasher.update(&compressed);
-    let computed_hash = format!("{:x}", hasher.finalize());
+    let digest = hasher.finalize();
+    let mut computed_hash = String::with_capacity(digest.len() * 2);
+    for b in &digest {
+        write!(&mut computed_hash, "{b:02x}")?;
+    }
 
     if computed_hash != release.hash {
         return Err(color_eyre::eyre::eyre!(

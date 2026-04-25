@@ -1,6 +1,6 @@
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{Context, FullEvent};
-use rand::Rng;
+use rand::RngExt;
 use regex::Regex;
 
 use crate::types::Data;
@@ -22,7 +22,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
     {
         let is_this = Regex::new(r"is this (true|real)(\?)?").unwrap();
         if is_this.is_match(&new_message.content) {
-            let select = rand::rng().random_range(0..=REPLIES.len());
+            let select = rand::rng().random_range(0..REPLIES.len());
             let response = REPLIES[select];
             let _ = new_message.reply(&ctx.http, response).await;
         }
