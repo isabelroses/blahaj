@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use color_eyre::eyre::Result;
 use poise::serenity_prelude::{Context, FullEvent};
 use regex::Regex;
@@ -5,13 +7,19 @@ use serenity::all::EditMessage;
 
 use crate::types::Data;
 
+static LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(https?:\/\/(?:(www|vm)\.)?(x\.com|twitter\.com|reddit\.com|instagram\.com|tiktok\.com)\/[^\s]+)").unwrap()
+});
+
 pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
-        let regex = Regex::new(r"(https?:\/\/(?:(www|vm)\.)?(x\.com|twitter\.com|reddit\.com|instagram\.com|tiktok\.com)\/[^\s]+)").unwrap();
+        if !new_message.content.contains("://") {
+            return Ok(());
+        }
         let mut links: Vec<String> = Vec::new();
         let mut begging_no_twitter: bool = false;
 
-        for capture in regex.find_iter(&new_message.content) {
+        for capture in LINK_RE.find_iter(&new_message.content) {
             let url = capture.as_str();
 
             let modified_url = url

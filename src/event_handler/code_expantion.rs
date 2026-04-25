@@ -1,6 +1,8 @@
 // the logic here is pretty much ripped from https://github.com/uncenter/discord-forum-bot/blob/main/src/modules/expandGitHubLinks.ts
 // with some modifications so I can make it work on diffrent git hosts
 
+use std::sync::LazyLock;
+
 use color_eyre::eyre::{Result, eyre};
 use poise::serenity_prelude::{Context, FullEvent};
 use regex::Regex;
@@ -8,9 +10,20 @@ use reqwest::Client;
 
 use crate::types::Data;
 
+static CODE_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"https?://(?P<host>(git.*|codeberg\.org|tangled\.org))/(?P<repo>[\w-]+/[\w.-]+)/(blob|(src/(commit|branch)))?/(?P<reference>\S+?)/(?P<file>\S+)#L(?P<start>\d+)(?:[~-]L?(?P<end>\d+)?)?",
+    )
+    .unwrap()
+});
+
 pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
-        let code_blocks = extract_code_blocks(new_message.content.clone(), &data.client).await?;
+        if !new_message.content.contains("://") {
+            return Ok(());
+        }
+
+        let code_blocks = extract_code_blocks(&new_message.content, &data.client).await?;
 
         if !code_blocks.is_empty() {
             new_message
@@ -23,14 +36,10 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
     Ok(())
 }
 
-async fn extract_code_blocks(msg: String, client: &Client) -> Result<Vec<String>> {
-    let re = Regex::new(
-        r"https?://(?P<host>(git.*|codeberg\.org|tangled\.org))/(?P<repo>[\w-]+/[\w.-]+)/(blob|(src/(commit|branch)))?/(?P<reference>\S+?)/(?P<file>\S+)#L(?P<start>\d+)(?:[~-]L?(?P<end>\d+)?)?",
-    )?;
-
+async fn extract_code_blocks(msg: &str, client: &Client) -> Result<Vec<String>> {
     let mut blocks: Vec<String> = Vec::new();
 
-    for caps in re.captures_iter(&msg) {
+    for caps in CODE_LINK_RE.captures_iter(msg) {
         let (host, repo, reference, file, start, end) = extract_url_components(&caps)?;
 
         let raw_url = construct_raw_url(host, repo, reference, file);

@@ -33,7 +33,7 @@ async fn handle_reaction_add(
     };
 
     // Get starboard config
-    let config: Option<(u64, u32)> = {
+    let config: Option<(u64, u32)> = tokio::task::block_in_place(|| {
         let conn = STARBOARD_DB.lock().unwrap();
         conn.query_row(
             "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
@@ -45,7 +45,7 @@ async fn handle_reaction_add(
             },
         )
         .ok()
-    };
+    });
 
     let Some((starboard_channel_id, threshold)) = config else {
         return Ok(());
@@ -73,10 +73,10 @@ async fn handle_reaction_add(
         return Ok(());
     }
 
-    let mut should_send = false;
-    let mut edit_starboard_msg_id: Option<i64> = None;
+    let (should_send, edit_starboard_msg_id) = tokio::task::block_in_place(|| {
+        let mut should_send = false;
+        let mut edit_starboard_msg_id: Option<i64> = None;
 
-    {
         let conn = STARBOARD_DB.lock().unwrap();
         let existing: Option<(Option<i64>, i64)> = conn
             .query_row(
@@ -121,7 +121,9 @@ async fn handle_reaction_add(
                 .ok();
             should_send = matches!(inserted, Some(rows) if rows > 0);
         }
-    }
+
+        (should_send, edit_starboard_msg_id)
+    });
 
     if let Some(starboard_msg_id) = edit_starboard_msg_id
         && let Ok(mut starboard_msg) = poise::serenity_prelude::ChannelId::new(starboard_channel_id)
@@ -143,7 +145,7 @@ async fn handle_reaction_add(
         let starboard_channel = poise::serenity_prelude::ChannelId::new(starboard_channel_id);
         let embed = create_star_embed(ctx, &message, star_count).await;
 
-        if let Ok(starboard_msg) = starboard_channel
+        let send_result = starboard_channel
             .send_message(
                 ctx,
                 poise::serenity_prelude::CreateMessage::new()
@@ -153,26 +155,28 @@ async fn handle_reaction_add(
                         guild_id, reaction.channel_id, reaction.message_id
                     )),
             )
-            .await
-        {
+            .await;
+
+        tokio::task::block_in_place(|| {
             let conn = STARBOARD_DB.lock().unwrap();
-            conn.execute(
+            if let Ok(starboard_msg) = send_result {
+                conn.execute(
                 "UPDATE starred_messages SET starboard_message_id = ?, posting = 0, star_count = ? WHERE message_id = ?",
                 [
                     starboard_msg.id.get().cast_signed(),
                     star_count.cast_signed(),
                     reaction.message_id.get().cast_signed(),
                 ],
-            )
-            .ok();
-        } else {
-            let conn = STARBOARD_DB.lock().unwrap();
-            conn.execute(
-                "UPDATE starred_messages SET posting = 0 WHERE message_id = ?",
-                [reaction.message_id.get().cast_signed()],
-            )
-            .ok();
-        }
+                )
+                .ok();
+            } else {
+                conn.execute(
+                    "UPDATE starred_messages SET posting = 0 WHERE message_id = ?",
+                    [reaction.message_id.get().cast_signed()],
+                )
+                .ok();
+            }
+        });
     }
 
     Ok(())
@@ -192,7 +196,7 @@ async fn handle_reaction_remove(
     };
 
     // Get starboard config
-    let config: Option<(u64, u32)> = {
+    let config: Option<(u64, u32)> = tokio::task::block_in_place(|| {
         let conn = STARBOARD_DB.lock().unwrap();
         conn.query_row(
             "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
@@ -204,7 +208,7 @@ async fn handle_reaction_remove(
             },
         )
         .ok()
-    };
+    });
 
     let Some((starboard_channel_id, threshold)) = config else {
         return Ok(());
@@ -224,7 +228,7 @@ async fn handle_reaction_remove(
         .map_or(0, |r| r.count);
 
     // Check if in starboard
-    let starboard_entry: Option<(Option<i64>, i64)> = {
+    let starboard_entry: Option<(Option<i64>, i64)> = tokio::task::block_in_place(|| {
         let conn = STARBOARD_DB.lock().unwrap();
         conn.query_row(
             "SELECT starboard_message_id, posting FROM starred_messages WHERE message_id = ?",
@@ -232,7 +236,7 @@ async fn handle_reaction_remove(
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .ok()
-    };
+    });
 
     let Some((starboard_msg_id, posting)) = starboard_entry else {
         return Ok(());
@@ -248,14 +252,36 @@ async fn handle_reaction_remove(
                 .await
                 .is_ok();
 
-            if deleted {
+            tokio::task::block_in_place(|| {
+                let conn = STARBOARD_DB.lock().unwrap();
+                if deleted {
+                    conn.execute(
+                        "DELETE FROM starred_messages WHERE message_id = ?",
+                        [reaction.message_id.get().cast_signed()],
+                    )
+                    .ok();
+                } else {
+                    conn.execute(
+                        "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
+                        [
+                            star_count.cast_signed(),
+                            reaction.message_id.get().cast_signed(),
+                        ],
+                    )
+                    .ok();
+                }
+            });
+        } else if posting == 0 {
+            tokio::task::block_in_place(|| {
                 let conn = STARBOARD_DB.lock().unwrap();
                 conn.execute(
                     "DELETE FROM starred_messages WHERE message_id = ?",
                     [reaction.message_id.get().cast_signed()],
                 )
                 .ok();
-            } else {
+            });
+        } else {
+            tokio::task::block_in_place(|| {
                 let conn = STARBOARD_DB.lock().unwrap();
                 conn.execute(
                     "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
@@ -265,28 +291,11 @@ async fn handle_reaction_remove(
                     ],
                 )
                 .ok();
-            }
-        } else if posting == 0 {
-            let conn = STARBOARD_DB.lock().unwrap();
-            conn.execute(
-                "DELETE FROM starred_messages WHERE message_id = ?",
-                [reaction.message_id.get().cast_signed()],
-            )
-            .ok();
-        } else {
-            let conn = STARBOARD_DB.lock().unwrap();
-            conn.execute(
-                "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
-                [
-                    star_count.cast_signed(),
-                    reaction.message_id.get().cast_signed(),
-                ],
-            )
-            .ok();
+            });
         }
     } else {
         // Update star count
-        {
+        tokio::task::block_in_place(|| {
             let conn = STARBOARD_DB.lock().unwrap();
             conn.execute(
                 "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
@@ -296,7 +305,7 @@ async fn handle_reaction_remove(
                 ],
             )
             .ok();
-        }
+        });
 
         // Update the starboard message
         if let Some(starboard_msg_id) = starboard_msg_id

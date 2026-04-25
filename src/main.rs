@@ -28,7 +28,6 @@ async fn main() -> Result<()> {
 
     let intents = GatewayIntents::non_privileged()
         | GatewayIntents::MESSAGE_CONTENT
-        | GatewayIntents::GUILD_PRESENCES
         | GatewayIntents::GUILD_MEMBERS;
 
     let opts = poise::FrameworkOptions {
