@@ -1,6 +1,9 @@
 use color_eyre::eyre::Result;
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fmt::Write;
+use std::io::{BufReader, Write as IoWrite};
 use std::path::Path;
 
 #[derive(Debug)]
@@ -40,6 +43,90 @@ struct Maintainer {
     email: Option<String>,
     github: Option<String>,
     github_id: Option<i64>,
+    matrix: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Root {
+    packages: HashMap<String, PackageJson>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PackageJson {
+    #[serde(default)]
+    pname: Option<String>,
+    #[serde(default)]
+    version: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    system: Option<String>,
+    #[serde(default, rename = "outputName")]
+    output_name: Option<String>,
+    #[serde(default)]
+    meta: Option<MetaJson>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct MetaJson {
+    #[serde(default)]
+    available: Option<bool>,
+    #[serde(default)]
+    broken: Option<bool>,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    homepage: Option<HomepageJson>,
+    #[serde(default)]
+    insecure: Option<bool>,
+    #[serde(default)]
+    unfree: Option<bool>,
+    #[serde(default)]
+    unsupported: Option<bool>,
+    #[serde(default)]
+    position: Option<String>,
+    #[serde(default, rename = "longDescription")]
+    long_description: Option<String>,
+    #[serde(default, rename = "mainProgram")]
+    main_program: Option<String>,
+    #[serde(default)]
+    license: Option<LicenseJson>,
+    #[serde(default)]
+    maintainers: Option<Vec<MaintainerJson>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum HomepageJson {
+    Single(String),
+    Multi(Vec<String>),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum LicenseJson {
+    Object(LicenseObj),
+    Array(Vec<LicenseObj>),
+    String(String),
+}
+
+#[derive(Debug, Deserialize)]
+struct LicenseObj {
+    #[serde(default, rename = "spdxId")]
+    spdx_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MaintainerJson {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    email: Option<String>,
+    #[serde(default)]
+    github: Option<String>,
+    #[serde(default, rename = "githubId")]
+    github_id: Option<i64>,
+    #[serde(default)]
     matrix: Option<String>,
 }
 
@@ -111,11 +198,18 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
     }
 
     println!("Downloading from {}...", release.url);
-    let response = reqwest::get(&release.url).await?;
-    let compressed = response.bytes().await?;
 
+    let temp_path = crate::utils::get_data_dir().join("packages.json.br.tmp");
+    let mut response = reqwest::get(&release.url).await?;
     let mut hasher = Sha256::new();
-    hasher.update(&compressed);
+    {
+        let mut file = std::fs::File::create(&temp_path)?;
+        while let Some(chunk) = response.chunk().await? {
+            hasher.update(&chunk);
+            file.write_all(&chunk)?;
+        }
+    }
+
     let digest = hasher.finalize();
     let mut computed_hash = String::with_capacity(digest.len() * 2);
     for b in &digest {
@@ -123,6 +217,7 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
     }
 
     if computed_hash != release.hash {
+        let _ = std::fs::remove_file(&temp_path);
         return Err(color_eyre::eyre::eyre!(
             "Hash mismatch! Expected {}, got {}",
             release.hash,
@@ -130,21 +225,20 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
         ));
     }
 
-    println!("Hash verified, decompressing...");
-    let mut decompressed = Vec::new();
-    let mut decoder = brotli::Decompressor::new(compressed.as_ref(), 4096);
-    std::io::copy(&mut decoder, &mut decompressed)?;
+    println!("Hash verified, decompressing and parsing...");
+    let root: Root = {
+        let file = std::fs::File::open(&temp_path)?;
+        let buffered = BufReader::with_capacity(64 * 1024, file);
+        let decoder = brotli::Decompressor::new(buffered, 64 * 1024);
+        let json_reader = BufReader::with_capacity(64 * 1024, decoder);
+        serde_json::from_reader(json_reader)?
+    };
+    let _ = std::fs::remove_file(&temp_path);
 
-    println!("Parsing JSON...");
-    let json_data: serde_json::Value = serde_json::from_slice(&decompressed)?;
+    let total = root.packages.len();
+    println!("Creating database with {total} packages...");
 
-    let packages = json_data["packages"]
-        .as_object()
-        .ok_or_else(|| color_eyre::eyre::eyre!("Invalid packages.json format"))?;
-
-    println!("Creating database with {} packages...", packages.len());
-
-    const BATCH_SIZE: usize = 5000; // Increased from 1000 for better performance
+    const BATCH_SIZE: usize = 5000;
 
     let mut conn = rusqlite::Connection::open(&db_path)?;
 
@@ -198,94 +292,62 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
         [],
     )?;
 
-    // Enable WAL mode for better concurrent access
     conn.pragma_update(None, "journal_mode", "WAL")?;
-
-    // Increase cache size for better performance
     conn.pragma_update(None, "cache_size", "-64000")?;
 
-    let total = packages.len();
     let mut count = 0;
+    let mut package_batch: Vec<Package> = Vec::with_capacity(BATCH_SIZE);
+    let mut maintainer_batch: Vec<Maintainer> = Vec::with_capacity(BATCH_SIZE * 4);
 
-    let mut package_batch = Vec::with_capacity(BATCH_SIZE);
-    let mut maintainer_batch = Vec::with_capacity(BATCH_SIZE * 4); // Estimate 4 maintainers per package
+    for (pkg_name, pkg_data) in root.packages {
+        let PackageJson {
+            pname,
+            version,
+            name: display_name,
+            system,
+            output_name,
+            meta,
+        } = pkg_data;
+        let m = meta.unwrap_or_default();
 
-    for (pkg_name, pkg_data) in packages {
-        let meta = &pkg_data["meta"];
-        let license_data = &meta["license"];
+        let homepage = extract_homepage(m.homepage);
+        let license_spdx = extract_license(m.license);
 
-        let license_spdx = extract_license(license_data);
-        let homepage = extract_homepage(meta);
+        if let Some(maints) = m.maintainers {
+            for mt in maints {
+                maintainer_batch.push(Maintainer {
+                    package_name: pkg_name.clone(),
+                    name: mt.name,
+                    email: mt.email,
+                    github: mt.github,
+                    github_id: mt.github_id,
+                    matrix: mt.matrix,
+                });
+            }
+        }
 
         package_batch.push(Package {
-            name: pkg_name.clone(),
-            pname: extract_string(pkg_data, "pname"),
-            version: extract_string(pkg_data, "version"),
-            display_name: extract_string(pkg_data, "name"),
-            system: extract_string(pkg_data, "system"),
-            output_name: extract_string(pkg_data, "outputName"),
-            available: i32::from(
-                meta.get("available")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false),
-            ),
-            broken: i32::from(
-                meta.get("broken")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false),
-            ),
-            description: extract_string(meta, "description"),
+            name: pkg_name,
+            pname,
+            version,
+            display_name,
+            system,
+            output_name,
+            available: i32::from(m.available.unwrap_or(false)),
+            broken: i32::from(m.broken.unwrap_or(false)),
+            description: m.description,
             homepage,
-            insecure: i32::from(
-                meta.get("insecure")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false),
-            ),
-            unfree: i32::from(
-                meta.get("unfree")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false),
-            ),
-            unsupported: i32::from(
-                meta.get("unsupported")
-                    .and_then(serde_json::Value::as_bool)
-                    .unwrap_or(false),
-            ),
-            position: extract_string(meta, "position"),
-            long_description: extract_string(meta, "longDescription"),
-            main_program: extract_string(meta, "mainProgram"),
+            insecure: i32::from(m.insecure.unwrap_or(false)),
+            unfree: i32::from(m.unfree.unwrap_or(false)),
+            unsupported: i32::from(m.unsupported.unwrap_or(false)),
+            position: m.position,
+            long_description: m.long_description,
+            main_program: m.main_program,
             license_spdx_id: license_spdx,
             license_full_name: None,
             license_free: 0,
             license_url: None,
         });
-
-        if let Some(maintainers) = meta.get("maintainers").and_then(|v| v.as_array()) {
-            for m in maintainers {
-                if let Some(obj) = m.as_object() {
-                    maintainer_batch.push(Maintainer {
-                        package_name: pkg_name.clone(),
-                        name: obj
-                            .get("name")
-                            .and_then(|v| v.as_str())
-                            .map(std::string::ToString::to_string),
-                        email: obj
-                            .get("email")
-                            .and_then(|v| v.as_str())
-                            .map(std::string::ToString::to_string),
-                        github: obj
-                            .get("github")
-                            .and_then(|v| v.as_str())
-                            .map(std::string::ToString::to_string),
-                        github_id: obj.get("githubId").and_then(serde_json::Value::as_i64),
-                        matrix: obj
-                            .get("matrix")
-                            .and_then(|v| v.as_str())
-                            .map(std::string::ToString::to_string),
-                    });
-                }
-            }
-        }
 
         count += 1;
 
@@ -310,50 +372,28 @@ pub async fn ensure_nixpkgs_database() -> Result<()> {
     Ok(())
 }
 
-/// Extract a string value from a JSON object
-fn extract_string(obj: &serde_json::Value, key: &str) -> Option<String> {
-    obj.get(key)
-        .and_then(serde_json::Value::as_str)
-        .map(std::string::ToString::to_string)
+fn extract_homepage(homepage: Option<HomepageJson>) -> Option<String> {
+    match homepage? {
+        HomepageJson::Single(s) => Some(s),
+        HomepageJson::Multi(arr) => arr.into_iter().next(),
+    }
 }
 
-/// Extract license information from license data
-fn extract_license(license_data: &serde_json::Value) -> Option<String> {
-    match license_data {
-        serde_json::Value::Object(obj) => obj
-            .get("spdxId")
-            .and_then(|v| v.as_str())
-            .map(std::string::ToString::to_string),
-        serde_json::Value::Array(arr) => {
-            let ids: Vec<&str> = arr
-                .iter()
-                .filter_map(|v| v.get("spdxId"))
-                .filter_map(|v| v.as_str())
-                .collect();
+fn extract_license(license: Option<LicenseJson>) -> Option<String> {
+    match license? {
+        LicenseJson::Object(o) => o.spdx_id,
+        LicenseJson::Array(arr) => {
+            let ids: Vec<String> = arr.into_iter().filter_map(|o| o.spdx_id).collect();
             if ids.is_empty() {
                 None
             } else {
                 Some(ids.join(", "))
             }
         }
-        serde_json::Value::String(s) => Some(s.clone()),
-        _ => None,
+        LicenseJson::String(s) => Some(s),
     }
 }
 
-/// Extract homepage from metadata
-fn extract_homepage(meta: &serde_json::Value) -> Option<String> {
-    meta.get("homepage").and_then(|h| match h {
-        serde_json::Value::String(s) => Some(s.clone()),
-        serde_json::Value::Array(arr) => arr
-            .first()
-            .and_then(|v| v.as_str())
-            .map(std::string::ToString::to_string),
-        _ => None,
-    })
-}
-
-/// Insert a batch of packages and maintainers into the database
 fn insert_batch(
     conn: &mut rusqlite::Connection,
     package_batch: &[Package],
@@ -404,7 +444,6 @@ fn insert_batch(
     Ok(())
 }
 
-/// Print progress information
 fn print_progress(count: usize, total: usize) {
     #[allow(clippy::cast_precision_loss)]
     let progress = (count as f64 / total as f64) * 100.0;
