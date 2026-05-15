@@ -39,6 +39,25 @@ pub static STARBOARD_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
     Mutex::new(conn)
 });
 
+pub static TRACKED_PRS_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
+    let db_path = get_data_dir().join("tracked_prs.db");
+    let conn = Connection::open(db_path).expect("Failed to open tracked PRs database");
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS tracked_prs (
+            pr_number INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            PRIMARY KEY (pr_number, user_id)
+        )",
+        [],
+    )
+    .expect("Failed to create tracked_prs table");
+
+    Mutex::new(conn)
+});
+
 fn ensure_starboard_schema(conn: &Connection) -> rusqlite::Result<()> {
     let mut stmt = conn.prepare("PRAGMA table_info(starred_messages)")?;
     let column_names = stmt

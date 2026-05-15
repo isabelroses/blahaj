@@ -56,6 +56,7 @@ async fn main() -> Result<()> {
             commands::nix::nixpkgs::nixpkgs(),
             commands::nix::nix::nix(),
             commands::nix::nixpkg::nixpkg(),
+            commands::nix::track::track_nixpkgs(),
             // fun commands
             commands::fun::chance::roll(),
             commands::fun::kittysay::kittysay(),
@@ -88,6 +89,8 @@ async fn main() -> Result<()> {
                         }
                     }
                 });
+
+                commands::nix::track::spawn_poller(ctx.clone());
 
                 let ctx_clone = ctx.clone();
                 tokio::spawn(async move {
