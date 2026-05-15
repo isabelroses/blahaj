@@ -86,8 +86,7 @@ pub async fn track_nixpkgs(
 
         let final_branch = statuses
             .last()
-            .map(|(name, _)| name.as_str())
-            .unwrap_or("nixos-unstable");
+            .map_or("nixpkgs-unstable", |(name, _)| name.as_str());
         description.push_str(&format!(
             "\nI'll DM you when this PR reaches `{final_branch}`."
         ));
@@ -150,8 +149,7 @@ async fn notify_reached_final(
 ) {
     let final_branch = statuses
         .last()
-        .map(|(name, _)| name.as_str())
-        .unwrap_or("nixos-unstable");
+        .map_or("nixpkgs-unstable", |(name, _)| name.as_str());
 
     let mut description = format_branch_statuses(statuses);
     description.push_str(&format!("\nReached `{final_branch}`."));
