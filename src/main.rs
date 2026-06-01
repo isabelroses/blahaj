@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
             commands::nix::nixpkgs::nixpkgs(),
             commands::nix::nix::nix(),
             commands::nix::nixpkg::nixpkg(),
-            commands::nix::track::track_nixpkgs(),
+            commands::nix::track::nixpkgs_track(),
             // fun commands
             commands::fun::chance::roll(),
             commands::fun::kittysay::kittysay(),

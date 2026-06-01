@@ -7,7 +7,8 @@ use poise::CreateReply;
 use reqwest::Client;
 
 use crate::commands::nix::nixpkgs::{
-    branch_statuses, format_branch_statuses, tracked_branches_for,
+    branch_statuses, format_branch_statuses, resolve_target_branch, tracked_branches_for,
+    TargetBranch,
 };
 use crate::types::Context;
 use crate::utils::TRACKED_PRS_DB;
@@ -16,18 +17,20 @@ const POLL_INTERVAL_SECS: u64 = 600;
 const PER_PR_DELAY_SECS: u64 = 2;
 const TRACKING_TTL_SECS: i64 = 60 * 60 * 24 * 30;
 
-/// Track a nixpkgs PR and get a DM when it lands in the final channel
+/// Track a nixpkgs PR and get a DM when it lands in the chosen branch
 #[poise::command(
     slash_command,
-    rename = "track-nixpkgs",
+    rename = "nixpkgs-track",
     install_context = "Guild|User",
     interaction_context = "Guild|BotDm|PrivateChannel"
 )]
-pub async fn track_nixpkgs(
+pub async fn nixpkgs_track(
     ctx: Context<'_>,
     #[description = "pr"]
     #[min = 0]
     pr: u64,
+    #[description = "branch to wait for (defaults to nixpkgs-unstable or the release branch)"]
+    branch: Option<TargetBranch>,
 ) -> Result<()> {
     ctx.defer().await?;
 
@@ -52,6 +55,7 @@ pub async fn track_nixpkgs(
         return Ok(());
     };
 
+    let target_branch = resolve_target_branch(&pull_request.base.r#ref, branch);
     let branches = tracked_branches_for(&pull_request.base.r#ref);
     let statuses = branch_statuses(
         ctx.data().client.clone(),
@@ -61,11 +65,16 @@ pub async fn track_nixpkgs(
     )
     .await?;
 
-    let reached_final = statuses.last().is_some_and(|(_, contains)| *contains);
+    let reached_target = statuses
+        .iter()
+        .find(|(name, _)| *name == target_branch)
+        .is_some_and(|(_, contains)| *contains);
     let mut description = format_branch_statuses(&statuses);
 
-    if reached_final {
-        description.push_str("\nAlready propagated to the final branch — nothing to track.");
+    if reached_target {
+        description.push_str(&format!(
+            "\nAlready propagated to `{target_branch}` — nothing to track."
+        ));
     } else {
         let user_id = ctx.author().id.get();
         let channel_id = ctx.channel_id().get();
@@ -74,21 +83,19 @@ pub async fn track_nixpkgs(
         tokio::task::block_in_place(|| {
             let conn = TRACKED_PRS_DB.lock().unwrap();
             conn.execute(
-                "INSERT OR REPLACE INTO tracked_prs (pr_number, user_id, channel_id, created_at) VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO tracked_prs (pr_number, user_id, channel_id, created_at, target_branch) VALUES (?, ?, ?, ?, ?)",
                 rusqlite::params![
                     pr.cast_signed(),
                     user_id.cast_signed(),
                     channel_id.cast_signed(),
                     now,
+                    target_branch,
                 ],
             )
         })?;
 
-        let final_branch = statuses
-            .last()
-            .map_or("nixpkgs-unstable", |(name, _)| name.as_str());
         description.push_str(&format!(
-            "\nI'll DM you when this PR reaches `{final_branch}`."
+            "\nI'll DM you when this PR reaches `{target_branch}`."
         ));
     }
 
@@ -108,14 +115,15 @@ struct TrackedRow {
     user_id: u64,
     channel_id: u64,
     created_at: i64,
+    target_branch: String,
 }
 
 fn load_tracked_rows() -> Vec<TrackedRow> {
     tokio::task::block_in_place(|| {
         let conn = TRACKED_PRS_DB.lock().unwrap();
-        let Ok(mut stmt) =
-            conn.prepare("SELECT pr_number, user_id, channel_id, created_at FROM tracked_prs")
-        else {
+        let Ok(mut stmt) = conn.prepare(
+            "SELECT pr_number, user_id, channel_id, created_at, target_branch FROM tracked_prs",
+        ) else {
             return Vec::new();
         };
         stmt.query_map([], |row| {
@@ -124,6 +132,7 @@ fn load_tracked_rows() -> Vec<TrackedRow> {
                 user_id: row.get::<_, i64>(1)?.cast_unsigned(),
                 channel_id: row.get::<_, i64>(2)?.cast_unsigned(),
                 created_at: row.get::<_, i64>(3)?,
+                target_branch: row.get::<_, String>(4)?,
             })
         })
         .map(|iter| iter.filter_map(std::result::Result::ok).collect::<Vec<_>>())
@@ -141,18 +150,14 @@ fn delete_tracked(pr_number: u64, user_id: u64) {
     });
 }
 
-async fn notify_reached_final(
+async fn notify_reached_target(
     serenity: &SerenityContext,
     row: &TrackedRow,
     pr: &nixpkgs_track_lib::PullRequest,
     statuses: &[(String, bool)],
 ) {
-    let final_branch = statuses
-        .last()
-        .map_or("nixpkgs-unstable", |(name, _)| name.as_str());
-
     let mut description = format_branch_statuses(statuses);
-    description.push_str(&format!("\nReached `{final_branch}`."));
+    description.push_str(&format!("\nReached `{}`.", row.target_branch));
 
     let embed = CreateEmbed::new()
         .title(format!("{} - #{}", pr.title, pr.number))
@@ -222,7 +227,7 @@ pub async fn poll_once(serenity: &SerenityContext) {
                         Ok(s) => s,
                         Err(err) => {
                             eprintln!(
-                                "track-nixpkgs: error checking branches for PR #{}: {err}",
+                                "nixpkgs-track: error checking branches for PR #{}: {err}",
                                 row.pr_number
                             );
                             tokio::time::sleep(std::time::Duration::from_secs(PER_PR_DELAY_SECS))
@@ -231,8 +236,13 @@ pub async fn poll_once(serenity: &SerenityContext) {
                         }
                     };
 
-                if statuses.last().is_some_and(|(_, contains)| *contains) {
-                    notify_reached_final(serenity, &row, &pr, &statuses).await;
+                let reached_target = statuses
+                    .iter()
+                    .find(|(name, _)| *name == row.target_branch)
+                    .is_some_and(|(_, contains)| *contains);
+
+                if reached_target {
+                    notify_reached_target(serenity, &row, &pr, &statuses).await;
                     delete_tracked(row.pr_number, row.user_id);
                 }
             }
@@ -240,11 +250,11 @@ pub async fn poll_once(serenity: &SerenityContext) {
                 delete_tracked(row.pr_number, row.user_id);
             }
             Err(nixpkgs_track_lib::NixpkgsTrackError::RateLimitExceeded) => {
-                eprintln!("track-nixpkgs: rate limited; aborting this poll cycle");
+                eprintln!("nixpkgs-track: rate limited; aborting this poll cycle");
                 return;
             }
             Err(err) => {
-                eprintln!("track-nixpkgs: error fetching PR #{}: {err}", row.pr_number);
+                eprintln!("nixpkgs-track: error fetching PR #{}: {err}", row.pr_number);
             }
         }
 
