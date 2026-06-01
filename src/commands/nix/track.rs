@@ -11,7 +11,7 @@ use crate::commands::nix::nixpkgs::{
     TargetBranch,
 };
 use crate::types::Context;
-use crate::utils::TRACKED_PRS_DB;
+use crate::utils::DB;
 
 const POLL_INTERVAL_SECS: u64 = 600;
 const PER_PR_DELAY_SECS: u64 = 2;
@@ -81,7 +81,7 @@ pub async fn nixpkgs_track(
         let now = chrono::Utc::now().timestamp();
 
         tokio::task::block_in_place(|| {
-            let conn = TRACKED_PRS_DB.lock().unwrap();
+            let conn = DB.lock().unwrap();
             conn.execute(
                 "INSERT OR REPLACE INTO tracked_prs (pr_number, user_id, channel_id, created_at, target_branch) VALUES (?, ?, ?, ?, ?)",
                 rusqlite::params![
@@ -120,7 +120,7 @@ struct TrackedRow {
 
 fn load_tracked_rows() -> Vec<TrackedRow> {
     tokio::task::block_in_place(|| {
-        let conn = TRACKED_PRS_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         let Ok(mut stmt) = conn.prepare(
             "SELECT pr_number, user_id, channel_id, created_at, target_branch FROM tracked_prs",
         ) else {
@@ -142,7 +142,7 @@ fn load_tracked_rows() -> Vec<TrackedRow> {
 
 fn delete_tracked(pr_number: u64, user_id: u64) {
     tokio::task::block_in_place(|| {
-        let conn = TRACKED_PRS_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         let _ = conn.execute(
             "DELETE FROM tracked_prs WHERE pr_number = ? AND user_id = ?",
             rusqlite::params![pr_number.cast_signed(), user_id.cast_signed()],

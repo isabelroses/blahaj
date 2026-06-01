@@ -1,6 +1,6 @@
 [package]
 name = "blahaj"
-version = "0.2.2"
+version = "0.3.0"
 license = "MIT"
 authors = ["isabel roses <isabel@isabelroses.com>"]
 description = "the resident discord bot of :3"

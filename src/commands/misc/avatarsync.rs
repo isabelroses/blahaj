@@ -2,29 +2,10 @@ use base64::Engine;
 use color_eyre::eyre::{Result, eyre};
 use poise::CreateReply;
 use poise::serenity_prelude::{EmojiId, User};
-use rusqlite::{Connection, params};
-use std::sync::{LazyLock, Mutex};
+use rusqlite::params;
 
 use crate::types::Context;
-
-static AVATAR_EMOJI_DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
-    let db_path = crate::utils::get_data_dir().join("avatar_emojis.db");
-    let conn = Connection::open(db_path).expect("Failed to open avatar emojis database");
-
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS avatar_emojis (
-            user_id INTEGER NOT NULL,
-            guild_id INTEGER NOT NULL,
-            emoji_id INTEGER NOT NULL,
-            emoji_name TEXT NOT NULL,
-            PRIMARY KEY (user_id, guild_id)
-        )",
-        [],
-    )
-    .expect("Failed to create avatar_emojis table");
-
-    Mutex::new(conn)
-});
+use crate::utils::DB;
 
 fn sanitize_emoji_name(name: &str) -> String {
     let sanitized: String = name
@@ -45,7 +26,7 @@ fn sanitize_emoji_name(name: &str) -> String {
 }
 
 fn get_avatar_emoji(user_id: u64, guild_id: u64) -> Option<(EmojiId, String)> {
-    let conn = AVATAR_EMOJI_DB.lock().ok()?;
+    let conn = DB.lock().ok()?;
     let mut stmt = conn
         .prepare(
             "SELECT emoji_id, emoji_name FROM avatar_emojis WHERE user_id = ? AND guild_id = ?",
@@ -69,7 +50,7 @@ fn save_avatar_emoji(
     emoji_id: EmojiId,
     emoji_name: &str,
 ) -> Result<()> {
-    let conn = AVATAR_EMOJI_DB.lock().unwrap();
+    let conn = DB.lock().unwrap();
     conn.execute(
         "INSERT OR REPLACE INTO avatar_emojis (user_id, guild_id, emoji_id, emoji_name) VALUES (?, ?, ?, ?)",
         params![user_id.cast_signed(), guild_id.cast_signed(), emoji_id.get().cast_signed(), emoji_name],
@@ -78,7 +59,7 @@ fn save_avatar_emoji(
 }
 
 fn delete_avatar_emoji(user_id: u64, guild_id: u64) -> Result<()> {
-    let conn = AVATAR_EMOJI_DB.lock().unwrap();
+    let conn = DB.lock().unwrap();
     conn.execute(
         "DELETE FROM avatar_emojis WHERE user_id = ? AND guild_id = ?",
         params![user_id.cast_signed(), guild_id.cast_signed()],

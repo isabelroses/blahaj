@@ -1,5 +1,5 @@
 use crate::types::Context;
-use crate::utils::STARBOARD_DB;
+use crate::utils::DB;
 use color_eyre::eyre::Result;
 use poise::CreateReply;
 use poise::serenity_prelude::ChannelId;
@@ -25,7 +25,7 @@ pub async fn starboard_enable(
     let threshold = threshold.unwrap_or(3).clamp(1, 100);
 
     {
-        let conn = STARBOARD_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         conn.execute(
             "INSERT OR REPLACE INTO starboard_config (guild_id, channel_id, threshold) VALUES (?, ?, ?)",
             [guild_id.get().cast_signed(), channel.get().cast_signed(), i64::from(threshold)],
@@ -58,7 +58,7 @@ pub async fn starboard_disable(ctx: Context<'_>) -> Result<()> {
     };
 
     {
-        let conn = STARBOARD_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         conn.execute(
             "DELETE FROM starboard_config WHERE guild_id = ?",
             [guild_id.get().cast_signed()],
@@ -89,7 +89,7 @@ pub async fn starboard_config(ctx: Context<'_>) -> Result<()> {
     };
 
     let config: Option<(u64, i32)> = {
-        let conn = STARBOARD_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         conn.query_row(
             "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
             [guild_id.get().cast_signed()],

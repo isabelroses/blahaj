@@ -2,7 +2,7 @@ use color_eyre::eyre::Result;
 use poise::serenity_prelude::{Colour, Context, EditMessage, FullEvent, ReactionType};
 
 use crate::types::Data;
-use crate::utils::STARBOARD_DB;
+use crate::utils::DB;
 
 pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()> {
     match event {
@@ -34,7 +34,7 @@ async fn handle_reaction_add(
 
     // Get starboard config
     let config: Option<(u64, u32)> = tokio::task::block_in_place(|| {
-        let conn = STARBOARD_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         conn.query_row(
             "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
             [guild_id.get().cast_signed()],
@@ -77,7 +77,7 @@ async fn handle_reaction_add(
         let mut should_send = false;
         let mut edit_starboard_msg_id: Option<i64> = None;
 
-        let conn = STARBOARD_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         let existing: Option<(Option<i64>, i64)> = conn
             .query_row(
                 "SELECT starboard_message_id, posting FROM starred_messages WHERE message_id = ?",
@@ -158,7 +158,7 @@ async fn handle_reaction_add(
             .await;
 
         tokio::task::block_in_place(|| {
-            let conn = STARBOARD_DB.lock().unwrap();
+            let conn = DB.lock().unwrap();
             if let Ok(starboard_msg) = send_result {
                 conn.execute(
                 "UPDATE starred_messages SET starboard_message_id = ?, posting = 0, star_count = ? WHERE message_id = ?",
@@ -197,7 +197,7 @@ async fn handle_reaction_remove(
 
     // Get starboard config
     let config: Option<(u64, u32)> = tokio::task::block_in_place(|| {
-        let conn = STARBOARD_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         conn.query_row(
             "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
             [guild_id.get().cast_signed()],
@@ -229,7 +229,7 @@ async fn handle_reaction_remove(
 
     // Check if in starboard
     let starboard_entry: Option<(Option<i64>, i64)> = tokio::task::block_in_place(|| {
-        let conn = STARBOARD_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         conn.query_row(
             "SELECT starboard_message_id, posting FROM starred_messages WHERE message_id = ?",
             [reaction.message_id.get().cast_signed()],
@@ -253,7 +253,7 @@ async fn handle_reaction_remove(
                 .is_ok();
 
             tokio::task::block_in_place(|| {
-                let conn = STARBOARD_DB.lock().unwrap();
+                let conn = DB.lock().unwrap();
                 if deleted {
                     conn.execute(
                         "DELETE FROM starred_messages WHERE message_id = ?",
@@ -273,7 +273,7 @@ async fn handle_reaction_remove(
             });
         } else if posting == 0 {
             tokio::task::block_in_place(|| {
-                let conn = STARBOARD_DB.lock().unwrap();
+                let conn = DB.lock().unwrap();
                 conn.execute(
                     "DELETE FROM starred_messages WHERE message_id = ?",
                     [reaction.message_id.get().cast_signed()],
@@ -282,7 +282,7 @@ async fn handle_reaction_remove(
             });
         } else {
             tokio::task::block_in_place(|| {
-                let conn = STARBOARD_DB.lock().unwrap();
+                let conn = DB.lock().unwrap();
                 conn.execute(
                     "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
                     [
@@ -296,7 +296,7 @@ async fn handle_reaction_remove(
     } else {
         // Update star count
         tokio::task::block_in_place(|| {
-            let conn = STARBOARD_DB.lock().unwrap();
+            let conn = DB.lock().unwrap();
             conn.execute(
                 "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
                 [

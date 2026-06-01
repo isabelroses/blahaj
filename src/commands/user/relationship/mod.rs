@@ -1,4 +1,3 @@
-mod db;
 mod logic;
 mod reply;
 
@@ -7,7 +6,7 @@ use color_eyre::eyre::Result;
 use poise::serenity_prelude::User;
 use std::collections::BTreeMap;
 
-use db::RELATIONSHIP_DB;
+use crate::utils::DB;
 use logic::{
     accept_invite, active_member_ids, decline_invite, has_pending_invite, is_active_member,
     leave_relationship, list_active_relationship_groups, list_active_relationships_for_user,
@@ -154,7 +153,7 @@ pub async fn make(
     let description = trim_optional_text(description);
 
     let relationship_result = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         resolve_relationship_for_make(
             &conn,
             guild_id.get(),
@@ -176,7 +175,7 @@ pub async fn make(
     };
 
     let invite_error = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         try_create_invite(&conn, make_resolution.relationship_id, caller_id, target_id)?
     };
 
@@ -224,7 +223,7 @@ pub async fn accept(
     let caller_id = ctx.author().id.get();
 
     let has_pending = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         has_pending_invite(&conn, relationship_id, caller_id, guild_id.get())
     };
 
@@ -239,7 +238,7 @@ pub async fn accept(
     }
 
     {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         accept_invite(&conn, relationship_id, caller_id)?;
     }
 
@@ -274,7 +273,7 @@ pub async fn decline(
     let caller_id = ctx.author().id.get();
 
     let updated = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         decline_invite(&conn, relationship_id, caller_id, guild_id.get())?
     };
 
@@ -331,7 +330,7 @@ pub async fn end(
     };
 
     let shared_ids = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         shared_relationship_ids(
             &conn,
             guild_id.get(),
@@ -373,7 +372,7 @@ pub async fn end(
 
     let relationship_id = shared_ids[0];
     let relationship_ended = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         leave_relationship(&conn, relationship_id, caller_id)?
     };
 
@@ -414,7 +413,7 @@ pub async fn leave(
     let caller_id = ctx.author().id.get();
 
     let is_member = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         is_active_member(&conn, relationship_id, guild_id.get(), caller_id)
     };
 
@@ -429,7 +428,7 @@ pub async fn leave(
     }
 
     let relationship_ended = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         leave_relationship(&conn, relationship_id, caller_id)?
     };
 
@@ -469,7 +468,7 @@ pub async fn list(
     let target_id = target.id.get();
 
     let relationships = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         list_active_relationships_for_user(&conn, guild_id.get(), target_id)?
     };
 
@@ -491,7 +490,7 @@ pub async fn list(
     let mut lines = vec![format!("**Active relationships for <@{target_id}>**")];
 
     {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         for (relationship_type, rows) in grouped {
             lines.push(format!("\n`{relationship_type}`"));
             for (relationship_id, emoji, description) in rows {
@@ -531,7 +530,7 @@ pub async fn inbox(ctx: Context<'_>) -> Result<()> {
 
     let caller_id = ctx.author().id.get();
     let invites = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         list_pending_invites_for_user(&conn, guild_id.get(), caller_id)?
     };
 
@@ -582,7 +581,7 @@ pub async fn groups(ctx: Context<'_>) -> Result<()> {
     };
 
     let groups = {
-        let conn = RELATIONSHIP_DB.lock().unwrap();
+        let conn = DB.lock().unwrap();
         list_active_relationship_groups(&conn, guild_id.get())?
     };
 
