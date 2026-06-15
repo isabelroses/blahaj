@@ -111,7 +111,7 @@ async fn fetch_code_block(
 
 fn format_code_block(language: &str, content: &str) -> String {
     if content.len() > 1950 {
-        let truncated_content = content.lines().take(1950).collect::<Vec<&str>>().join("\n");
+        let truncated_content = content.chars().take(1950).collect::<String>();
         format!("```{language}\n{truncated_content}\n```\n... (lines not displayed)")
     } else {
         format!("```{language}\n{content}\n```")
