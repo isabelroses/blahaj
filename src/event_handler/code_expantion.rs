@@ -26,7 +26,13 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
         let code_blocks = extract_code_blocks(&new_message.content, &data.client).await?;
 
         if !code_blocks.is_empty() {
-            let response = format_long_response(&code_blocks.join("\n"));
+            let attachment_name = attachment_name_for_code_blocks(&code_blocks);
+            let response_text = code_blocks
+                .iter()
+                .map(|block| block.content.as_str())
+                .collect::<Vec<&str>>()
+                .join("\n");
+            let response = format_long_response(&response_text, &attachment_name);
 
             new_message.channel_id.send_message(ctx, response).await?;
         }
@@ -35,8 +41,13 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
     Ok(())
 }
 
-async fn extract_code_blocks(msg: &str, client: &Client) -> Result<Vec<String>> {
-    let mut blocks: Vec<String> = Vec::new();
+struct CodeBlock {
+    content: String,
+    file_name: String,
+}
+
+async fn extract_code_blocks(msg: &str, client: &Client) -> Result<Vec<CodeBlock>> {
+    let mut blocks: Vec<CodeBlock> = Vec::new();
 
     for caps in CODE_LINK_RE.captures_iter(msg) {
         let (host, repo, reference, file, start, end) = extract_url_components(&caps)?;
@@ -44,7 +55,10 @@ async fn extract_code_blocks(msg: &str, client: &Client) -> Result<Vec<String>> 
         let raw_url = construct_raw_url(host, repo, reference, file);
 
         if let Ok(code_block) = fetch_code_block(client, &raw_url, start, end, file).await {
-            blocks.push(code_block);
+            blocks.push(CodeBlock {
+                content: code_block,
+                file_name: file_name(file).to_string(),
+            });
         }
     }
 
@@ -117,7 +131,7 @@ fn format_code_block(language: &str, content: &str) -> String {
 /// - <= 2000 chars: regular message content
 /// - 2001-4096 chars: embed description
 /// - > 4096 chars: content with first 2000 chars + file attachment
-fn format_long_response(text: &str) -> CreateMessage {
+fn format_long_response(text: &str, attachment_name: &str) -> CreateMessage {
     let text_length = text.chars().count();
 
     if text_length <= 2000 {
@@ -126,10 +140,25 @@ fn format_long_response(text: &str) -> CreateMessage {
         CreateMessage::new().embed(CreateEmbed::new().description(text))
     } else {
         let preview = text.chars().take(2000).collect::<String>();
-        let attachment = CreateAttachment::bytes(text.as_bytes(), "response.md");
+        let attachment = CreateAttachment::bytes(text.as_bytes(), attachment_name);
 
         CreateMessage::new().content(preview).add_file(attachment)
     }
+}
+
+fn attachment_name_for_code_blocks(code_blocks: &[CodeBlock]) -> String {
+    if let [code_block] = code_blocks {
+        code_block.file_name.clone()
+    } else {
+        "expanded-code.md".to_string()
+    }
+}
+
+fn file_name(path: &str) -> &str {
+    remove_query_string(path)
+        .rsplit('/')
+        .next()
+        .unwrap_or("expanded-code.md")
 }
 
 fn remove_query_string(input: &str) -> &str {
