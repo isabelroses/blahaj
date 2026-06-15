@@ -4,7 +4,7 @@
 use std::sync::LazyLock;
 
 use color_eyre::eyre::{Result, eyre};
-use poise::serenity_prelude::{Context, FullEvent};
+use poise::serenity_prelude::{Context, CreateAttachment, CreateEmbed, CreateMessage, FullEvent};
 use regex::Regex;
 use reqwest::Client;
 
@@ -26,10 +26,9 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
         let code_blocks = extract_code_blocks(&new_message.content, &data.client).await?;
 
         if !code_blocks.is_empty() {
-            new_message
-                .channel_id
-                .say(ctx, code_blocks.join("\n"))
-                .await?;
+            let response = format_long_response(&code_blocks.join("\n"));
+
+            new_message.channel_id.send_message(ctx, response).await?;
         }
     }
 
@@ -110,11 +109,26 @@ async fn fetch_code_block(
 }
 
 fn format_code_block(language: &str, content: &str) -> String {
-    if content.len() > 1950 {
-        let truncated_content = content.chars().take(1950).collect::<String>();
-        format!("```{language}\n{truncated_content}\n```\n... (lines not displayed)")
+    format!("```{language}\n{content}\n```")
+}
+
+/// Formats a long text response for Discord by splitting it into content, embed, or file based
+/// on length.
+/// - <= 2000 chars: regular message content
+/// - 2001-4096 chars: embed description
+/// - > 4096 chars: content with first 2000 chars + file attachment
+fn format_long_response(text: &str) -> CreateMessage {
+    let text_length = text.chars().count();
+
+    if text_length <= 2000 {
+        CreateMessage::new().content(text)
+    } else if text_length <= 4096 {
+        CreateMessage::new().embed(CreateEmbed::new().description(text))
     } else {
-        format!("```{language}\n{content}\n```")
+        let preview = text.chars().take(2000).collect::<String>();
+        let attachment = CreateAttachment::bytes(text.as_bytes(), "response.md");
+
+        CreateMessage::new().content(preview).add_file(attachment)
     }
 }
 
