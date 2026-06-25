@@ -67,9 +67,8 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
         None => return Ok(()),
     };
 
-    if prompt.is_empty() {
-        if explicit {
-            let _ = new_message
+    if prompt.is_empty() && explicit {
+        let _ = new_message
                 .reply(&ctx.http, "ask me something after `@grok`")
                 .await;
         }
