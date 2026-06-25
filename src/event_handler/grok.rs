@@ -10,7 +10,8 @@ use crate::types::Data;
 const API_URL: &str = "https://opencode.ai/zen/v1/chat/completions";
 const MODEL: &str = "deepseek-v4-flash-free";
 const REASONING: &str = "low";
-const TRIGGER: &str = "@grok";
+/// Trigger tokens that invoke the bot. `@gork` is a common typo of `@grok`.
+const TRIGGERS: &[&str] = &["@grok", "@gork"];
 /// How far up a reply chain we walk when gathering context.
 const MAX_CHAIN_DEPTH: usize = 25;
 /// Base endpoint for defuddle, which returns a readable markdown rendering of a
@@ -136,13 +137,17 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
     Ok(())
 }
 
-/// Returns the message content with the `@grok` trigger removed, or `None` if
-/// the message does not contain the trigger anywhere.
+/// Returns the message content with any trigger token removed, or `None` if the
+/// message does not contain a trigger anywhere.
 fn strip_trigger(content: &str) -> Option<String> {
-    if !content.contains(TRIGGER) {
+    if !TRIGGERS.iter().any(|trigger| content.contains(trigger)) {
         return None;
     }
-    Some(content.replace(TRIGGER, "").trim().to_string())
+    let mut stripped = content.to_string();
+    for trigger in TRIGGERS {
+        stripped = stripped.replace(trigger, "");
+    }
+    Some(stripped.trim().to_string())
 }
 
 /// Whether `msg` is a reply to a message authored by the bot.
