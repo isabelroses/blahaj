@@ -25,10 +25,6 @@ const MAX_LINK_CHARS: usize = 20000;
 /// Matches URLs in a message so we can fetch their readable contents as context.
 static URL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"https?://[^\s<>()\[\]]+").unwrap());
 
-/// Matches bare `:emote_name:` references the model emits so we can swap in the
-/// real Discord emote tokens.
-static EMOTE_REF_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r":(?P<name>\w+):").unwrap());
-
 const SYSTEM_PROMPT: &str = r#"
 You are blahaj, a helpful and concise assistant living inside a Discord
 chat. You are given a message that triggered you, along with the reply chain it is part of for
@@ -120,7 +116,6 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
 
     match result {
         Ok(reply) => {
-            let reply = substitute_emotes(&reply, &emojis);
             send_reply(ctx, new_message, &reply).await;
         }
         Err(err) => {
@@ -246,25 +241,6 @@ fn emote_list(emojis: &[Emoji]) -> Option<String> {
         list.push_str(&format!("- :{}:\n", emoji.name));
     }
     Some(list)
-}
-
-/// Replaces bare `:name:` emote references the model produced with the real
-/// `<:name:id>` (or `<a:name:id>` for animated) tokens Discord renders, using
-/// the guild's emote list. References without a matching emote are left as-is.
-fn substitute_emotes(reply: &str, emojis: &[Emoji]) -> String {
-    if emojis.is_empty() {
-        return reply.to_string();
-    }
-
-    EMOTE_REF_RE
-        .replace_all(reply, |caps: &regex::Captures| {
-            let name = &caps["name"];
-            emojis
-                .iter()
-                .find(|emoji| emoji.name == name)
-                .map_or_else(|| caps[0].to_string(), ToString::to_string)
-        })
-        .into_owned()
 }
 
 /// Walks up the reply chain starting from (but not including) `start`,
@@ -424,28 +400,10 @@ async fn send_reply(ctx: &Context, message: &Message, reply: &str) {
             .reference_message(message);
         let _ = message.channel_id.send_message(&ctx.http, builder).await;
     } else {
-        let mut truncated: String = reply.chars().take(4093).collect();
-        // Substitution can push a near-budget reply past the embed limit; make
-        // sure we didn't slice through a `<:name:id>` token, which would leave a
-        // broken fragment in the message.
-        trim_partial_emote(&mut truncated);
+        let truncated: String = reply.chars().take(4093).collect();
         let builder = CreateMessage::new()
             .embed(CreateEmbed::new().description(format!("{truncated}...")))
             .reference_message(message);
         let _ = message.channel_id.send_message(&ctx.http, builder).await;
-    }
-}
-
-/// Removes a dangling, unterminated custom-emote token (`<:name:id` or
-/// `<a:name:id` missing its closing `>`) from the end of `s`. Custom emotes
-/// always start with `<:` or `<a:`, so a trailing one of those without a `>` can
-/// only be a token sliced off by truncation.
-fn trim_partial_emote(s: &mut String) {
-    if let Some(open) = s.rfind('<') {
-        let tail = &s[open..];
-        let looks_like_emote = tail.starts_with("<:") || tail.starts_with("<a:");
-        if looks_like_emote && !tail.contains('>') {
-            s.truncate(open);
-        }
     }
 }
