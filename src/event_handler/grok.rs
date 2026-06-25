@@ -1,15 +1,33 @@
+use std::sync::LazyLock;
+
 use color_eyre::eyre::{Result, eyre};
 use poise::serenity_prelude::{Context, CreateEmbed, CreateMessage, Emoji, FullEvent, Message};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::types::Data;
 
 const API_URL: &str = "https://opencode.ai/zen/v1/chat/completions";
 const MODEL: &str = "deepseek-v4-flash-free";
-const REASONING: &str = "xhigh";
-const TRIGGER: &str = "@grok";
+const REASONING: &str = "low";
+/// Trigger tokens that invoke the bot. `@gork` is a common typo of `@grok`.
+const TRIGGERS: &[&str] = &["@grok", "@gork"];
 /// How far up a reply chain we walk when gathering context.
 const MAX_CHAIN_DEPTH: usize = 25;
+/// Base endpoint for defuddle, which returns a readable markdown rendering of a
+/// page. The target URL (without its scheme) is appended to this.
+const DEFUDDLE_URL: &str = "https://defuddle.md/";
+/// How many links from a single message we fetch contents for.
+const MAX_LINKS: usize = 3;
+/// Cap on how many characters of fetched link content we feed the model.
+const MAX_LINK_CHARS: usize = 20000;
+
+/// Matches URLs in a message so we can fetch their readable contents as context.
+static URL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"https?://[^\s<>()\[\]]+").unwrap());
+
+/// Matches bare `:emote_name:` references the model emits so we can swap in the
+/// real Discord emote tokens.
+static EMOTE_REF_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r":(?P<name>\w+):").unwrap());
 
 const SYSTEM_PROMPT: &str = r#"
 You are blahaj, a helpful and concise assistant living inside a Discord
@@ -17,9 +35,10 @@ chat. You are given a message that triggered you, along with the reply chain it 
 context (oldest first). User messages are prefixed with the author's display name followed by a
 colon, so you can tell who said what; do not prefix your own reply with a name. Answer the latest
 message concisely, unless otherwise specified. You may use markdown in your response, but NEVER use LaTeX or tables.
-You may use the server's custom emotes when it fits naturally; to do so, copy one of the provided
-emote tokens verbatim (including the angle brackets). Do not invent emote tokens or guess their ids.
-Keep replies under 2000 characters.
+You may use the server's custom emotes when it fits naturally; to do so, write the emote's name
+wrapped in colons, like `:emote_name:`. Only use names from the provided list; do not invent emotes.
+You may be given the contents of external links the user shared, supplied as system context; use them
+when relevant. Keep replies under 4000 characters.
 "#;
 
 #[derive(Serialize)]
@@ -43,6 +62,12 @@ struct ChatResponse {
 #[derive(Deserialize)]
 struct Choice {
     message: ChatMessage,
+}
+
+/// The readable contents of a link shared in a message, fetched via defuddle.
+struct LinkContext {
+    url: String,
+    content: String,
 }
 
 pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()> {
@@ -80,19 +105,31 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
 
     let emojis = fetch_emojis(ctx, new_message).await;
     let chain = collect_chain(ctx, new_message).await;
-    let messages = build_messages(&chain, new_message, &prompt, bot_id, &emojis);
+    let link_contexts = fetch_link_contexts(data, &new_message.content).await;
+    let messages = build_messages(
+        &chain,
+        new_message,
+        &prompt,
+        bot_id,
+        &emojis,
+        &link_contexts,
+    );
 
     let result = request_completion(data, messages).await;
     typing.stop();
 
     match result {
         Ok(reply) => {
+            let reply = substitute_emotes(&reply, &emojis);
             send_reply(ctx, new_message, &reply).await;
         }
         Err(err) => {
             eprintln!("grok request failed: {err}");
             let _ = new_message
-                .reply(&ctx.http, "something went wrong talking to the model")
+                .reply(
+                    &ctx.http,
+                    format!("something went wrong talking to the model: {err}"),
+                )
                 .await;
         }
     }
@@ -100,13 +137,17 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
     Ok(())
 }
 
-/// Returns the message content with the `@grok` trigger removed, or `None` if
-/// the message does not contain the trigger anywhere.
+/// Returns the message content with any trigger token removed, or `None` if the
+/// message does not contain a trigger anywhere.
 fn strip_trigger(content: &str) -> Option<String> {
-    if !content.contains(TRIGGER) {
+    if !TRIGGERS.iter().any(|trigger| content.contains(trigger)) {
         return None;
     }
-    Some(content.replace(TRIGGER, "").trim().to_string())
+    let mut stripped = content.to_string();
+    for trigger in TRIGGERS {
+        stripped = stripped.replace(trigger, "");
+    }
+    Some(stripped.trim().to_string())
 }
 
 /// Whether `msg` is a reply to a message authored by the bot.
@@ -132,8 +173,66 @@ async fn fetch_emojis(ctx: &Context, msg: &Message) -> Vec<Emoji> {
     }
 }
 
+/// Extracts the URLs from `content` and fetches a readable markdown rendering
+/// of each via defuddle, so the model can reason about pages it cannot
+/// otherwise see. When a message has more than [`MAX_LINKS`] links we keep the
+/// most recent (last) ones, since those are usually what the user is asking
+/// about. Failed fetches are skipped (best-effort context).
+async fn fetch_link_contexts(data: &Data, content: &str) -> Vec<LinkContext> {
+    // Collect unique URLs in the order they appear, then keep the last
+    // MAX_LINKS so we favour the most recently shared links.
+    let mut urls: Vec<&str> = Vec::new();
+    for m in URL_RE.find_iter(content) {
+        // The regex greedily grabs trailing sentence punctuation (e.g. the `.`
+        // in "see https://example.com."), which would corrupt the fetch URL.
+        let url = m.as_str().trim_end_matches(['.', ',', '!', '?', ';', ':']);
+        if !url.is_empty() && !urls.contains(&url) {
+            urls.push(url);
+        }
+    }
+    let start = urls.len().saturating_sub(MAX_LINKS);
+
+    let mut contexts = Vec::new();
+    for url in &urls[start..] {
+        match fetch_link(data, url).await {
+            Ok(content) => contexts.push(LinkContext {
+                url: (*url).to_string(),
+                content,
+            }),
+            Err(err) => eprintln!("grok failed to fetch link {url}: {err}"),
+        }
+    }
+
+    contexts
+}
+
+/// Fetches a single URL through defuddle and returns its markdown contents,
+/// truncated to [`MAX_LINK_CHARS`] characters.
+async fn fetch_link(data: &Data, url: &str) -> Result<String> {
+    // defuddle takes the target URL with its scheme stripped, appended to the base.
+    let stripped = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+        .unwrap_or(url);
+    let request_url = format!("{DEFUDDLE_URL}{stripped}");
+
+    let response = data.client.get(&request_url).send().await?;
+    if !response.status().is_success() {
+        return Err(eyre!("defuddle returned status {}", response.status()));
+    }
+
+    let text = response.text().await?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Err(eyre!("defuddle returned empty content"));
+    }
+
+    Ok(trimmed.chars().take(MAX_LINK_CHARS).collect())
+}
+
 /// Renders the available custom emotes as a system message listing each emote's
-/// name alongside the exact token the model must copy to use it, or `None` if
+/// name, instructing the model to reference them with bare `:name:` tokens (we
+/// substitute the real `<:name:id>` token before sending). Returns `None` if
 /// there are no emotes.
 fn emote_list(emojis: &[Emoji]) -> Option<String> {
     if emojis.is_empty() {
@@ -141,13 +240,31 @@ fn emote_list(emojis: &[Emoji]) -> Option<String> {
     }
 
     let mut list = String::from(
-        "The server has these custom emotes available. To use one, copy its token verbatim:\n",
+        "The server has these custom emotes available. To use one, write its name wrapped in colons (for example :name:):\n",
     );
     for emoji in emojis {
-        // `Emoji`'s Display renders the `<:name:id>` token Discord expects.
-        list.push_str(&format!("- {}: {}\n", emoji.name, emoji));
+        list.push_str(&format!("- :{}:\n", emoji.name));
     }
     Some(list)
+}
+
+/// Replaces bare `:name:` emote references the model produced with the real
+/// `<:name:id>` (or `<a:name:id>` for animated) tokens Discord renders, using
+/// the guild's emote list. References without a matching emote are left as-is.
+fn substitute_emotes(reply: &str, emojis: &[Emoji]) -> String {
+    if emojis.is_empty() {
+        return reply.to_string();
+    }
+
+    EMOTE_REF_RE
+        .replace_all(reply, |caps: &regex::Captures| {
+            let name = &caps["name"];
+            emojis
+                .iter()
+                .find(|emoji| emoji.name == name)
+                .map_or_else(|| caps[0].to_string(), ToString::to_string)
+        })
+        .into_owned()
 }
 
 /// Walks up the reply chain starting from (but not including) `start`,
@@ -186,6 +303,7 @@ fn build_messages(
     prompt: &str,
     bot_id: poise::serenity_prelude::UserId,
     emojis: &[Emoji],
+    link_contexts: &[LinkContext],
 ) -> Vec<ChatMessage> {
     let mut messages = Vec::with_capacity(chain.len() + 3);
 
@@ -201,8 +319,19 @@ fn build_messages(
         });
     }
 
+    for link in link_contexts {
+        messages.push(ChatMessage {
+            role: "system".to_string(),
+            content: format!(
+                "Contents of the link {} (converted to markdown):\n\n{}",
+                link.url, link.content
+            ),
+        });
+    }
+
     for msg in chain {
-        let content = strip_trigger(&msg.content).unwrap_or_else(|| msg.content.clone());
+        let raw = message_text(msg);
+        let content = strip_trigger(&raw).unwrap_or(raw);
         if content.trim().is_empty() {
             continue;
         }
@@ -226,6 +355,21 @@ fn build_messages(
     });
 
     messages
+}
+
+/// The textual content of a message for context purposes. Falls back to the
+/// embed descriptions when the plain content is empty, since blahaj's own long
+/// replies live in an embed description rather than the message body.
+fn message_text(msg: &Message) -> String {
+    if !msg.content.trim().is_empty() {
+        return msg.content.clone();
+    }
+
+    msg.embeds
+        .iter()
+        .filter_map(|embed| embed.description.as_deref())
+        .collect::<Vec<&str>>()
+        .join("\n\n")
 }
 
 /// The name to attribute a message to: the per-guild nickname if present,
@@ -280,10 +424,28 @@ async fn send_reply(ctx: &Context, message: &Message, reply: &str) {
             .reference_message(message);
         let _ = message.channel_id.send_message(&ctx.http, builder).await;
     } else {
-        let truncated: String = reply.chars().take(4093).collect();
+        let mut truncated: String = reply.chars().take(4093).collect();
+        // Substitution can push a near-budget reply past the embed limit; make
+        // sure we didn't slice through a `<:name:id>` token, which would leave a
+        // broken fragment in the message.
+        trim_partial_emote(&mut truncated);
         let builder = CreateMessage::new()
             .embed(CreateEmbed::new().description(format!("{truncated}...")))
             .reference_message(message);
         let _ = message.channel_id.send_message(&ctx.http, builder).await;
+    }
+}
+
+/// Removes a dangling, unterminated custom-emote token (`<:name:id` or
+/// `<a:name:id` missing its closing `>`) from the end of `s`. Custom emotes
+/// always start with `<:` or `<a:`, so a trailing one of those without a `>` can
+/// only be a token sliced off by truncation.
+fn trim_partial_emote(s: &mut String) {
+    if let Some(open) = s.rfind('<') {
+        let tail = &s[open..];
+        let looks_like_emote = tail.starts_with("<:") || tail.starts_with("<a:");
+        if looks_like_emote && !tail.contains('>') {
+            s.truncate(open);
+        }
     }
 }
