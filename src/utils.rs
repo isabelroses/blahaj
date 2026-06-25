@@ -288,10 +288,8 @@ mod tests {
 
     #[test]
     fn copy_table_imports_only_common_columns_and_skips_conflicts() {
-        let legacy_path = std::env::temp_dir().join(format!(
-            "blahaj-migrate-test-{}.db",
-            std::process::id()
-        ));
+        let legacy_path =
+            std::env::temp_dir().join(format!("blahaj-migrate-test-{}.db", std::process::id()));
         let _ = std::fs::remove_file(&legacy_path);
 
         // A legacy database with an extra, since-removed column.
@@ -320,11 +318,8 @@ mod tests {
         // primary key.
         let conn = Connection::open_in_memory().unwrap();
         init_color_roles(&conn).unwrap();
-        conn.execute(
-            "INSERT INTO color_roles VALUES (2, 99, 999, 'keep-me')",
-            [],
-        )
-        .unwrap();
+        conn.execute("INSERT INTO color_roles VALUES (2, 99, 999, 'keep-me')", [])
+            .unwrap();
 
         conn.execute(
             "ATTACH DATABASE ? AS legacy",
