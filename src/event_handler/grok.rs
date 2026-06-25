@@ -11,8 +11,9 @@ use crate::types::Data;
 const API_URL: &str = "https://opencode.ai/zen/v1/chat/completions";
 const MODEL: &str = "deepseek-v4-flash-free";
 const REASONING: &str = "low";
-/// Trigger tokens that invoke the bot. `@gork` is a common typo of `@grok`.
-const TRIGGERS: &[&str] = &["@grok", "@gork"];
+/// Trigger tokens that invoke the bot. `@gork` and `@gock` are common typos of
+/// `@grok`.
+const TRIGGERS: &[&str] = &["@grok", "@gork", "@gock"];
 /// How far up a reply chain we walk when gathering context.
 const MAX_CHAIN_DEPTH: usize = 25;
 /// Base endpoint for defuddle, which returns a readable markdown rendering of a
@@ -31,14 +32,22 @@ static URL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"https?://[^\s<>()
 /// characters, so anything else (e.g. `:)`) is left untouched.
 static EMOTE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r":(\w+):").unwrap());
 
+/// Matches full Discord emote tokens (`<:name:id>` or `<a:name:id>`) so we can
+/// strip the numeric IDs back down to bare `:name:` form before feeding message
+/// content to the model. This keeps emote IDs out of the model's context, so it
+/// only ever sees the human-readable name.
+static EMOTE_ID_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"<a?:(\w+):\d+>").unwrap());
+
 const SYSTEM_PROMPT: &str = r#"
 You are blahaj, a helpful and concise assistant living inside a Discord
 chat. You are given a message that triggered you, along with the reply chain it is part of for
 context (oldest first). User messages are prefixed with the author's display name followed by a
 colon, so you can tell who said what; do not prefix your own reply with a name. Answer the latest
 message concisely, unless otherwise specified. You may use markdown in your response, but NEVER use LaTeX or tables.
-You may use the server's custom emotes when it fits naturally; to do so, write the emote's name
-wrapped in colons, like `:emote_name:`. Only use names from the provided list; do not invent emotes.
+You may use the server's custom emotes when it fits naturally. To use an emote you MUST write ONLY
+its name wrapped in colons, like `:emote_name:`, and nothing else; never write an emote in any other
+form. Only use names from the provided list; do not invent emotes.
 You may be given the contents of external links the user shared, supplied as system context; use them
 when relevant. Keep replies under 4000 characters.
 "#;
@@ -257,6 +266,16 @@ fn substitute_emotes(reply: &str, emojis: &[Emoji]) -> String {
         .into_owned()
 }
 
+/// Strips Discord emote IDs out of message content, rewriting full
+/// `<:name:id>` / `<a:name:id>` tokens back to bare `:name:` form. We do this
+/// before feeding any message content to the model so it only ever sees the
+/// emote's name, never its numeric ID.
+fn strip_emote_ids(content: &str) -> String {
+    EMOTE_ID_RE
+        .replace_all(content, |caps: &regex::Captures<'_>| format!(":{}:", &caps[1]))
+        .into_owned()
+}
+
 /// Renders the available custom emotes as a system message listing each emote's
 /// name, instructing the model to reference them with bare `:name:` tokens
 /// ([`substitute_emotes`] swaps them for the real `<:name:id>` token before
@@ -339,7 +358,7 @@ fn build_messages(
 
     for msg in chain {
         let raw = message_text(msg);
-        let content = strip_trigger(&raw).unwrap_or(raw);
+        let content = strip_emote_ids(&strip_trigger(&raw).unwrap_or(raw));
         if content.trim().is_empty() {
             continue;
         }
@@ -359,7 +378,7 @@ fn build_messages(
 
     messages.push(ChatMessage {
         role: "user".to_string(),
-        content: format!("{}: {}", display_name(trigger), prompt),
+        content: format!("{}: {}", display_name(trigger), strip_emote_ids(prompt)),
     });
 
     messages
@@ -468,5 +487,16 @@ mod tests {
     #[test]
     fn no_emotes_returns_reply_unchanged() {
         assert_eq!(substitute_emotes(":blahaj: hi", &[]), ":blahaj: hi");
+    }
+
+    #[test]
+    fn strips_emote_ids_to_bare_names() {
+        // Both static and animated full tokens collapse to bare :name:, while
+        // existing bare shortcodes and plain text are left untouched.
+        let input = "hi <:blahaj:123> and <a:dance:456> plus :already: text";
+        assert_eq!(
+            strip_emote_ids(input),
+            "hi :blahaj: and :dance: plus :already: text"
+        );
     }
 }
