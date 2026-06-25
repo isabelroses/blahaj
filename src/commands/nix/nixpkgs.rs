@@ -88,7 +88,7 @@ pub fn resolve_target_branch(base_ref: &str, choice: Option<TargetBranch>) -> St
     let index = match choice {
         Some(target) => target.index(),
         None if stable_version(base_ref).is_some() => 2, // release-XX.XX
-        None => 3,                                        // nixpkgs-unstable
+        None => 3,                                       // nixpkgs-unstable
     };
 
     branches

@@ -1,14 +1,12 @@
 use color_eyre::eyre::Result;
 use nixpkgs_track_lib::fetch_nixpkgs_pull_request;
-use poise::serenity_prelude::{
-    Context as SerenityContext, CreateEmbed, CreateMessage, UserId,
-};
 use poise::CreateReply;
+use poise::serenity_prelude::{Context as SerenityContext, CreateEmbed, CreateMessage, UserId};
 use reqwest::Client;
 
 use crate::commands::nix::nixpkgs::{
-    branch_statuses, format_branch_statuses, resolve_target_branch, tracked_branches_for,
-    TargetBranch,
+    TargetBranch, branch_statuses, format_branch_statuses, resolve_target_branch,
+    tracked_branches_for,
 };
 use crate::types::Context;
 use crate::utils::DB;
@@ -264,7 +262,8 @@ pub async fn poll_once(serenity: &SerenityContext) {
 
 pub fn spawn_poller(serenity: SerenityContext) {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(POLL_INTERVAL_SECS));
+        let mut interval =
+            tokio::time::interval(std::time::Duration::from_secs(POLL_INTERVAL_SECS));
         loop {
             interval.tick().await;
             poll_once(&serenity).await;

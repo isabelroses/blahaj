@@ -3,6 +3,7 @@ use poise::serenity_prelude::{Context, FullEvent};
 
 mod blahaj_is_this_true;
 mod code_expantion;
+mod grok;
 mod replace_link;
 mod starboard;
 
@@ -16,6 +17,7 @@ pub async fn event_handler(ctx: &Context, event: &FullEvent, data: &Data) -> Res
     code_expantion::handle(ctx, event, data).await?;
     replace_link::handle(ctx, event, data).await?;
     blahaj_is_this_true::handle(ctx, event, data).await?;
+    grok::handle(ctx, event, data).await?;
     starboard::handle(ctx, event, data).await?;
 
     Ok(())
