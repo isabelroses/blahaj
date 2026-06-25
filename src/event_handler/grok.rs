@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use color_eyre::eyre::{Result, eyre};
@@ -24,6 +25,11 @@ const MAX_LINK_CHARS: usize = 20000;
 
 /// Matches URLs in a message so we can fetch their readable contents as context.
 static URL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"https?://[^\s<>()\[\]]+").unwrap());
+
+/// Matches bare `:emote_name:` tokens in the model's reply so we can swap them
+/// for the real Discord emote token. Discord emote names are limited to word
+/// characters, so anything else (e.g. `:)`) is left untouched.
+static EMOTE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r":(\w+):").unwrap());
 
 const SYSTEM_PROMPT: &str = r#"
 You are blahaj, a helpful and concise assistant living inside a Discord
@@ -116,6 +122,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
 
     match result {
         Ok(reply) => {
+            let reply = substitute_emotes(&reply, &emojis);
             send_reply(ctx, new_message, &reply).await;
         }
         Err(err) => {
@@ -225,10 +232,35 @@ async fn fetch_link(data: &Data, url: &str) -> Result<String> {
     Ok(trimmed.chars().take(MAX_LINK_CHARS).collect())
 }
 
+/// Replaces bare `:name:` emote tokens in `reply` with the real Discord token
+/// (`<:name:id>`, or `<a:name:id>` for animated emotes, both produced by
+/// [`Emoji`]'s `Display`) for every emote that exists in the guild. Tokens that
+/// don't match a known emote are left untouched, so ordinary text and unknown
+/// shortcodes pass through unchanged.
+fn substitute_emotes(reply: &str, emojis: &[Emoji]) -> String {
+    if emojis.is_empty() {
+        return reply.to_string();
+    }
+
+    let by_name: HashMap<&str, &Emoji> = emojis
+        .iter()
+        .map(|emoji| (emoji.name.as_str(), emoji))
+        .collect();
+
+    EMOTE_RE
+        .replace_all(reply, |caps: &regex::Captures<'_>| {
+            match by_name.get(&caps[1]) {
+                Some(emoji) => emoji.to_string(),
+                None => caps[0].to_string(),
+            }
+        })
+        .into_owned()
+}
+
 /// Renders the available custom emotes as a system message listing each emote's
-/// name, instructing the model to reference them with bare `:name:` tokens (we
-/// substitute the real `<:name:id>` token before sending). Returns `None` if
-/// there are no emotes.
+/// name, instructing the model to reference them with bare `:name:` tokens
+/// ([`substitute_emotes`] swaps them for the real `<:name:id>` token before
+/// sending). Returns `None` if there are no emotes.
 fn emote_list(emojis: &[Emoji]) -> Option<String> {
     if emojis.is_empty() {
         return None;
@@ -405,5 +437,36 @@ async fn send_reply(ctx: &Context, message: &Message, reply: &str) {
             .embed(CreateEmbed::new().description(format!("{truncated}...")))
             .reference_message(message);
         let _ = message.channel_id.send_message(&ctx.http, builder).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn emoji(name: &str, id: u64, animated: bool) -> Emoji {
+        serde_json::from_value(serde_json::json!({
+            "name": name,
+            "id": id.to_string(),
+            "animated": animated,
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn substitutes_known_emotes_and_leaves_others_alone() {
+        let emojis = [emoji("blahaj", 123, false), emoji("dance", 456, true)];
+
+        // Known static and animated emotes become real Discord tokens; an
+        // unknown shortcode and a plain colon emoticon pass through untouched.
+        let reply = "hi :blahaj: time to :dance: :unknown: :)";
+        let out = substitute_emotes(reply, &emojis);
+
+        assert_eq!(out, "hi <:blahaj:123> time to <a:dance:456> :unknown: :)");
+    }
+
+    #[test]
+    fn no_emotes_returns_reply_unchanged() {
+        assert_eq!(substitute_emotes(":blahaj: hi", &[]), ":blahaj: hi");
     }
 }
