@@ -19,8 +19,15 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
         let mut links: Vec<String> = Vec::new();
         let mut begging_no_twitter: bool = false;
 
-        for capture in LINK_RE.find_iter(&new_message.content) {
+        let content = &new_message.content;
+        for capture in LINK_RE.find_iter(content) {
             let url = capture.as_str();
+
+            // Skip links prefixed with `!` so users can opt out of embed
+            // replacement by writing e.g. "!https://twitter.com/foo".
+            if capture.start() > 0 && content.as_bytes()[capture.start() - 1] == b'!' {
+                continue;
+            }
 
             let modified_url = url
                 .replace("https://x.com", "https://vxtwitter.com")
