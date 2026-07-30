@@ -17,7 +17,6 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
             return Ok(());
         }
         let mut links: Vec<String> = Vec::new();
-        let mut begging_no_twitter: bool = false;
 
         let content = &new_message.content;
         for capture in LINK_RE.find_iter(content) {
@@ -40,10 +39,6 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                 .replace("https://vm.tiktok.com", "https://vm.tnktok.com")
                 .replace("https://tiktok.com", "https://tnktok.com");
 
-            if url.contains("x.com") || url.contains("twitter.com") {
-                begging_no_twitter = true;
-            }
-
             links.push(modified_url);
         }
 
@@ -58,16 +53,7 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                     EditMessage::new().suppress_embeds(true),
                 )
                 .await;
-            if begging_no_twitter {
-                let _ = new_message
-                    .reply(
-                        ctx.http.clone(),
-                        links.join("\n") + "\n-# Please stop using twitter!",
-                    )
-                    .await;
-            } else {
-                let _ = new_message.reply(ctx.http.clone(), links.join("\n")).await;
-            }
+            let _ = new_message.reply(ctx.http.clone(), links.join("\n")).await;
         }
     }
 
