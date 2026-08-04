@@ -8,10 +8,10 @@ use std::collections::BTreeMap;
 
 use crate::utils::DB;
 use logic::{
-    accept_invite, active_member_ids, decline_invite, has_pending_invite, is_active_member,
-    leave_relationship, list_active_relationship_groups, list_active_relationships_for_user,
-    list_pending_invites_for_user, normalize_relationship_type, resolve_relationship_for_make,
-    shared_relationship_ids, try_create_invite,
+    ActiveRelationship, accept_invite, active_member_ids, decline_invite, has_pending_invite,
+    is_active_member, leave_relationship, list_active_relationship_groups,
+    list_active_relationships_for_user, list_pending_invites_for_user, normalize_relationship_type,
+    resolve_relationship_for_make, shared_relationship_ids, try_create_invite,
 };
 use reply::safe_reply;
 
@@ -46,6 +46,8 @@ fn format_group_header(
     base
 }
 
+// Subcommand parent; poise requires it to be async even though it does nothing.
+#[allow(clippy::unused_async)]
 #[poise::command(
     slash_command,
     guild_only,
@@ -478,13 +480,12 @@ pub async fn list(
         return Ok(());
     }
 
-    let mut grouped: BTreeMap<String, Vec<(i64, Option<String>, Option<String>)>> = BTreeMap::new();
-    for (relationship_id, relationship_type, emoji, description) in &relationships {
-        grouped.entry(relationship_type.clone()).or_default().push((
-            *relationship_id,
-            emoji.clone(),
-            description.clone(),
-        ));
+    let mut grouped: BTreeMap<String, Vec<ActiveRelationship>> = BTreeMap::new();
+    for relationship in relationships {
+        grouped
+            .entry(relationship.relationship_type.clone())
+            .or_default()
+            .push(relationship);
     }
 
     let mut lines = vec![format!("**Active relationships for <@{target_id}>**")];
@@ -493,8 +494,8 @@ pub async fn list(
         let conn = DB.lock().unwrap();
         for (relationship_type, rows) in grouped {
             lines.push(format!("\n`{relationship_type}`"));
-            for (relationship_id, emoji, description) in rows {
-                let members = active_member_ids(&conn, relationship_id)?;
+            for row in rows {
+                let members = active_member_ids(&conn, row.relationship_id)?;
                 let member_mentions = members
                     .iter()
                     .map(|id| format!("<@{id}>"))
@@ -503,10 +504,13 @@ pub async fn list(
 
                 let header = format_group_header(
                     &relationship_type,
-                    emoji.as_deref(),
-                    description.as_deref(),
+                    row.emoji.as_deref(),
+                    row.description.as_deref(),
                 );
-                lines.push(format!("- #{relationship_id} {header}: {member_mentions}"));
+                lines.push(format!(
+                    "- #{} {header}: {member_mentions}",
+                    row.relationship_id
+                ));
             }
         }
     }

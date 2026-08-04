@@ -276,7 +276,7 @@ pub async fn update(
         )
         .await?;
         return Ok(());
-    };
+    }
 
     ctx.defer().await?;
 

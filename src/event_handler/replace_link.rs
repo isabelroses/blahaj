@@ -98,7 +98,9 @@ mod tests {
     fn rejects_anything_that_is_not_purely_replaced_links() {
         assert!(!is_link_replacement(""));
         assert!(!is_link_replacement("   \n "));
-        assert!(!is_link_replacement("look at this https://vxtwitter.com/foo"));
+        assert!(!is_link_replacement(
+            "look at this https://vxtwitter.com/foo"
+        ));
         assert!(!is_link_replacement("https://x.com/foo"));
         assert!(!is_link_replacement("https://vxtwitter.com.evil.com/foo"));
         assert!(!is_link_replacement("sure, here's the answer"));

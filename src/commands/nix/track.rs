@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use color_eyre::eyre::Result;
 use nixpkgs_track_lib::fetch_nixpkgs_pull_request;
 use poise::CreateReply;
@@ -70,9 +72,10 @@ pub async fn nixpkgs_track(
     let mut description = format_branch_statuses(&statuses);
 
     if reached_target {
-        description.push_str(&format!(
+        let _ = write!(
+            description,
             "\nAlready propagated to `{target_branch}` — nothing to track."
-        ));
+        );
     } else {
         let user_id = ctx.author().id.get();
         let channel_id = ctx.channel_id().get();
@@ -92,9 +95,10 @@ pub async fn nixpkgs_track(
             )
         })?;
 
-        description.push_str(&format!(
+        let _ = write!(
+            description,
             "\nI'll DM you when this PR reaches `{target_branch}`."
-        ));
+        );
     }
 
     let embed = CreateReply::default().embed(
@@ -155,7 +159,7 @@ async fn notify_reached_target(
     statuses: &[(String, bool)],
 ) {
     let mut description = format_branch_statuses(statuses);
-    description.push_str(&format!("\nReached `{}`.", row.target_branch));
+    let _ = write!(description, "\nReached `{}`.", row.target_branch);
 
     let embed = CreateEmbed::new()
         .title(format!("{} - #{}", pr.title, pr.number))

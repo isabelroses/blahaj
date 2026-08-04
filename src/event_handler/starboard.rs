@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use poise::serenity_prelude::{Colour, Context, EditMessage, FullEvent, ReactionType};
+use poise::serenity_prelude::{Colour, Context, EditMessage, FullEvent, MessageId, ReactionType};
 
 use crate::types::Data;
 use crate::utils::DB;
@@ -18,13 +18,21 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
     Ok(())
 }
 
+const STAR: &str = "⭐";
+
+/// Compares against the inner string rather than building a `ReactionType` to
+/// compare with, which would allocate on every reaction event.
+fn is_star(reaction_type: &ReactionType) -> bool {
+    matches!(reaction_type, ReactionType::Unicode(emoji) if emoji == STAR)
+}
+
 #[allow(clippy::too_many_lines)]
 async fn handle_reaction_add(
     ctx: &Context,
     reaction: &poise::serenity_prelude::Reaction,
 ) -> Result<()> {
     // Only handle star reactions
-    if reaction.emoji != ReactionType::Unicode("⭐".to_string()) {
+    if !is_star(&reaction.emoji) {
         return Ok(());
     }
 
@@ -66,7 +74,7 @@ async fn handle_reaction_add(
     let star_count = message
         .reactions
         .iter()
-        .find(|r| r.reaction_type == ReactionType::Unicode("⭐".to_string()))
+        .find(|r| is_star(&r.reaction_type))
         .map_or(0, |r| r.count);
 
     if star_count < u64::from(threshold) {
@@ -182,12 +190,34 @@ async fn handle_reaction_add(
     Ok(())
 }
 
+fn update_star_count(message_id: MessageId, star_count: u64) {
+    tokio::task::block_in_place(|| {
+        let conn = DB.lock().unwrap();
+        conn.execute(
+            "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
+            [star_count.cast_signed(), message_id.get().cast_signed()],
+        )
+        .ok();
+    });
+}
+
+fn delete_starred_message(message_id: MessageId) {
+    tokio::task::block_in_place(|| {
+        let conn = DB.lock().unwrap();
+        conn.execute(
+            "DELETE FROM starred_messages WHERE message_id = ?",
+            [message_id.get().cast_signed()],
+        )
+        .ok();
+    });
+}
+
 async fn handle_reaction_remove(
     ctx: &Context,
     reaction: &poise::serenity_prelude::Reaction,
 ) -> Result<()> {
     // Only handle star reactions
-    if reaction.emoji != ReactionType::Unicode("⭐".to_string()) {
+    if !is_star(&reaction.emoji) {
         return Ok(());
     }
 
@@ -224,7 +254,7 @@ async fn handle_reaction_remove(
     let star_count = message
         .reactions
         .iter()
-        .find(|r| r.reaction_type == ReactionType::Unicode("⭐".to_string()))
+        .find(|r| is_star(&r.reaction_type))
         .map_or(0, |r| r.count);
 
     // Check if in starboard
@@ -252,60 +282,18 @@ async fn handle_reaction_remove(
                 .await
                 .is_ok();
 
-            tokio::task::block_in_place(|| {
-                let conn = DB.lock().unwrap();
-                if deleted {
-                    conn.execute(
-                        "DELETE FROM starred_messages WHERE message_id = ?",
-                        [reaction.message_id.get().cast_signed()],
-                    )
-                    .ok();
-                } else {
-                    conn.execute(
-                        "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
-                        [
-                            star_count.cast_signed(),
-                            reaction.message_id.get().cast_signed(),
-                        ],
-                    )
-                    .ok();
-                }
-            });
+            if deleted {
+                delete_starred_message(reaction.message_id);
+            } else {
+                update_star_count(reaction.message_id, star_count);
+            }
         } else if posting == 0 {
-            tokio::task::block_in_place(|| {
-                let conn = DB.lock().unwrap();
-                conn.execute(
-                    "DELETE FROM starred_messages WHERE message_id = ?",
-                    [reaction.message_id.get().cast_signed()],
-                )
-                .ok();
-            });
+            delete_starred_message(reaction.message_id);
         } else {
-            tokio::task::block_in_place(|| {
-                let conn = DB.lock().unwrap();
-                conn.execute(
-                    "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
-                    [
-                        star_count.cast_signed(),
-                        reaction.message_id.get().cast_signed(),
-                    ],
-                )
-                .ok();
-            });
+            update_star_count(reaction.message_id, star_count);
         }
     } else {
-        // Update star count
-        tokio::task::block_in_place(|| {
-            let conn = DB.lock().unwrap();
-            conn.execute(
-                "UPDATE starred_messages SET star_count = ? WHERE message_id = ?",
-                [
-                    star_count.cast_signed(),
-                    reaction.message_id.get().cast_signed(),
-                ],
-            )
-            .ok();
-        });
+        update_star_count(reaction.message_id, star_count);
 
         // Update the starboard message
         if let Some(starboard_msg_id) = starboard_msg_id

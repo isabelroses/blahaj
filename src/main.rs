@@ -80,8 +80,7 @@ async fn main() -> Result<()> {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
                 tokio::spawn(async {
-                    let mut interval =
-                        tokio::time::interval(std::time::Duration::from_secs(43_200));
+                    let mut interval = tokio::time::interval(std::time::Duration::from_hours(12));
                     loop {
                         interval.tick().await;
                         if let Err(e) = nixpkgs_db::ensure_nixpkgs_database().await {
@@ -132,7 +131,7 @@ async fn main() -> Result<()> {
                             }
                         }
 
-                        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                        tokio::time::sleep(std::time::Duration::from_mins(1)).await;
                     }
                 });
 

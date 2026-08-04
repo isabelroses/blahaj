@@ -18,6 +18,14 @@ pub struct InviteInboxItem {
 }
 
 #[derive(Debug)]
+pub struct ActiveRelationship {
+    pub relationship_id: i64,
+    pub relationship_type: String,
+    pub emoji: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug)]
 pub struct GroupSummary {
     pub relationship_id: i64,
     pub relationship_type: String,
@@ -135,6 +143,8 @@ pub fn resolve_relationship_for_make(
     }))
 }
 
+// inviter_id/invitee_id mirror the relationship_invites column names.
+#[allow(clippy::similar_names)]
 pub fn try_create_invite(
     conn: &Connection,
     relationship_id: i64,
@@ -305,7 +315,7 @@ pub fn list_active_relationships_for_user(
     conn: &Connection,
     guild_id: u64,
     user_id: u64,
-) -> Result<Vec<(i64, String, Option<String>, Option<String>)>> {
+) -> Result<Vec<ActiveRelationship>> {
     let mut stmt = conn.prepare(
         "SELECT r.id, r.relationship_type, r.emoji, r.description
          FROM relationships r
@@ -320,11 +330,12 @@ pub fn list_active_relationships_for_user(
     let rows = stmt.query_map(
         params![guild_id.cast_signed(), user_id.cast_signed()],
         |row| {
-            let relationship_id: i64 = row.get(0)?;
-            let relationship_type: String = row.get(1)?;
-            let emoji: Option<String> = row.get(2)?;
-            let description: Option<String> = row.get(3)?;
-            Ok((relationship_id, relationship_type, emoji, description))
+            Ok(ActiveRelationship {
+                relationship_id: row.get(0)?,
+                relationship_type: row.get(1)?,
+                emoji: row.get(2)?,
+                description: row.get(3)?,
+            })
         },
     )?;
 
