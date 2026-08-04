@@ -9,29 +9,23 @@ use typst::Library;
 use typst::LibraryExt;
 use typst::World;
 use typst::diag::{FileError, FileResult};
-use typst::foundations::{Bytes, Datetime};
-use typst::layout::PagedDocument;
+use typst::foundations::{Bytes, Datetime, Duration};
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
-use typst::utils::LazyHash;
-use typst_kit::fonts::FontSearcher;
+use typst::utils::{LazyHash, Scalar};
+use typst_kit::fonts::FontStore;
+use typst_layout::PagedDocument;
+use typst_render::RenderOptions;
 
 use crate::types::Context;
 
-struct FontState {
-    book: LazyHash<FontBook>,
-    fonts: Vec<typst_kit::fonts::FontSlot>,
-}
+static FONTS: OnceLock<FontStore> = OnceLock::new();
 
-static FONTS: OnceLock<FontState> = OnceLock::new();
-
-fn fonts() -> &'static FontState {
+fn fonts() -> &'static FontStore {
     FONTS.get_or_init(|| {
-        let fonts = FontSearcher::new().include_system_fonts(false).search();
-        FontState {
-            book: LazyHash::new(fonts.book),
-            fonts: fonts.fonts,
-        }
+        let mut store = FontStore::new();
+        store.extend(typst_kit::fonts::embedded());
+        store
     })
 }
 
@@ -61,7 +55,7 @@ impl World for MathWorld {
     }
 
     fn book(&self) -> &LazyHash<FontBook> {
-        &fonts().book
+        fonts().book()
     }
 
     fn main(&self) -> FileId {
@@ -81,10 +75,10 @@ impl World for MathWorld {
     }
 
     fn font(&self, index: usize) -> Option<Font> {
-        fonts().fonts.get(index)?.get()
+        fonts().font(index)
     }
 
-    fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
+    fn today(&self, _offset: Option<Duration>) -> Option<Datetime> {
         None
     }
 }
@@ -110,11 +104,15 @@ pub async fn typst(
                 eyre!("Compilation error:\n{}", messages.join("\n"))
             })?;
 
-        if document.pages.is_empty() {
+        let Some(page) = document.pages().first() else {
             return Err(eyre!("Compilation produced no pages"));
-        }
-        let page = &document.pages[0];
-        let pixmap = typst_render::render(page, 9.0);
+        };
+
+        let opts = RenderOptions {
+            pixel_per_pt: Scalar::new(9.0),
+            ..RenderOptions::default()
+        };
+        let pixmap = typst_render::render(page, &opts);
         pixmap
             .encode_png()
             .map_err(|e| eyre!("PNG encoding failed: {e}"))
