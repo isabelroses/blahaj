@@ -11,6 +11,28 @@ static LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(https?:\/\/(?:(www|vm)\.)?(x\.com|twitter\.com|reddit\.com|instagram\.com|tiktok\.com)\/[^\s]+)").unwrap()
 });
 
+const REPLACEMENT_HOSTS: &[&str] = &[
+    "vxtwitter.com",
+    "vxreddit.com",
+    "kkinstagram.com",
+    "tnktok.com",
+    "vm.tnktok.com",
+];
+
+pub fn is_link_replacement(content: &str) -> bool {
+    let mut tokens = content.split_whitespace().peekable();
+    if tokens.peek().is_none() {
+        return false;
+    }
+
+    tokens.all(|token| {
+        token
+            .strip_prefix("https://")
+            .map(|rest| rest.split('/').next().unwrap_or_default())
+            .is_some_and(|host| REPLACEMENT_HOSTS.contains(&host))
+    })
+}
+
 pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
         if !new_message.content.contains("://") {
@@ -58,4 +80,27 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recognises_our_own_replacement_messages() {
+        assert!(is_link_replacement("https://vxtwitter.com/foo/status/1"));
+        assert!(is_link_replacement(
+            "https://vxreddit.com/r/a\nhttps://vm.tnktok.com/b"
+        ));
+    }
+
+    #[test]
+    fn rejects_anything_that_is_not_purely_replaced_links() {
+        assert!(!is_link_replacement(""));
+        assert!(!is_link_replacement("   \n "));
+        assert!(!is_link_replacement("look at this https://vxtwitter.com/foo"));
+        assert!(!is_link_replacement("https://x.com/foo"));
+        assert!(!is_link_replacement("https://vxtwitter.com.evil.com/foo"));
+        assert!(!is_link_replacement("sure, here's the answer"));
+    }
 }

@@ -6,6 +6,7 @@ use poise::serenity_prelude::{Context, CreateEmbed, CreateMessage, Emoji, FullEv
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use super::replace_link;
 use crate::types::Data;
 
 const API_URL: &str = "https://opencode.ai/zen/v1/chat/completions";
@@ -162,11 +163,12 @@ fn strip_trigger(content: &str) -> Option<String> {
     Some(stripped.trim().to_string())
 }
 
-/// Whether `msg` is a reply to a message authored by the bot.
+/// Whether `msg` is a reply to a message authored by the bot, ignoring our own
+/// link replacements so continuing that thread doesn't trigger us.
 fn is_reply_to_bot(msg: &Message, bot_id: poise::serenity_prelude::UserId) -> bool {
-    msg.referenced_message
-        .as_ref()
-        .is_some_and(|parent| parent.author.id == bot_id)
+    msg.referenced_message.as_ref().is_some_and(|parent| {
+        parent.author.id == bot_id && !replace_link::is_link_replacement(&parent.content)
+    })
 }
 
 /// Fetches the custom emotes for the guild the message was sent in. Returns an
