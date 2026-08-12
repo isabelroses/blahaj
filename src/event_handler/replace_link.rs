@@ -14,7 +14,7 @@ static LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
 const REPLACEMENT_HOSTS: &[&str] = &[
     "vxtwitter.com",
     "vxreddit.com",
-    "kkinstagram.com",
+    "oginstagram.com",
     "tnktok.com",
     "vm.tnktok.com",
 ];
@@ -55,8 +55,8 @@ pub async fn handle(ctx: &Context, event: &FullEvent, _data: &Data) -> Result<()
                 .replace("https://twitter.com", "https://vxtwitter.com")
                 .replace("https://www.reddit.com", "https://vxreddit.com")
                 .replace("https://reddit.com", "https://vxreddit.com")
-                .replace("https://www.instagram.com", "https://kkinstagram.com")
-                .replace("https://instagram.com", "https://kkinstagram.com")
+                .replace("https://www.instagram.com", "https://oginstagram.com")
+                .replace("https://instagram.com", "https://oginstagram.com")
                 .replace("https://www.tiktok.com", "https://tnktok.com")
                 .replace("https://vm.tiktok.com", "https://vm.tnktok.com")
                 .replace("https://tiktok.com", "https://tnktok.com");
