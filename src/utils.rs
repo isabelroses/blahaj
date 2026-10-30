@@ -98,6 +98,7 @@ fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
     init_avatar_emojis(conn)?;
     init_color_roles(conn)?;
     init_relationships(conn)?;
+    init_timezones(conn)?;
     Ok(())
 }
 
@@ -264,6 +265,21 @@ fn init_relationships(conn: &Connection) -> rusqlite::Result<()> {
     if !column_exists(conn, "relationships", "description")? {
         conn.execute("ALTER TABLE relationships ADD COLUMN description TEXT", [])?;
     }
+
+    Ok(())
+}
+
+fn init_timezones(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS user_timezones (
+            guild_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            timezone TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, user_id)
+        )",
+        [],
+    )?;
 
     Ok(())
 }

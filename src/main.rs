@@ -37,6 +37,7 @@ async fn main() -> Result<()> {
             commands::user::avatar::avatar(),
             commands::user::color_me::color_me(),
             commands::user::relationship::relationship(),
+            commands::user::timezone::timezone(),
             // bot commands
             commands::bot::ping::ping(),
             commands::bot::bot::botinfo(),
