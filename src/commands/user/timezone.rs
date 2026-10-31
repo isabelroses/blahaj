@@ -4,7 +4,7 @@ use chrono::{Datelike, Offset, Timelike};
 use chrono_tz::{TZ_VARIANTS, Tz};
 use color_eyre::eyre::Result;
 use poise::CreateReply;
-use poise::serenity_prelude::{CreateEmbed, CreateEmbedFooter};
+use poise::serenity_prelude::{CreateEmbed};
 
 const EMBED_DESCRIPTION_LIMIT: usize = 3800;
 
@@ -202,21 +202,10 @@ fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
         }
     }
 
-    let footer = format!(
-        "{} {} · sorted by time",
-        entries.len(),
-        if entries.len() == 1 {
-            "person"
-        } else {
-            "people"
-        },
-    );
-
     CreateEmbed::new()
         .title("🕒 Timezones")
         .description(build_description(&blocks))
         .color(0x5D_81_96)
-        .footer(CreateEmbedFooter::new(footer))
 }
 
 async fn autocomplete_timezone<'a>(
