@@ -176,7 +176,7 @@ fn render_view(entries: &[Entry], utc_offsets: bool) -> CreateEmbed {
     let mut grouped_entries: Vec<(&Entry, Vec<u64>)> = Vec::new();
     for entry in entries {
         if let Some(last) = grouped_entries.last_mut() {
-            if last.0.tz_name == entry.tz_name {
+            if short_zone(&last.0.tz_name) == short_zone(&entry.tz_name) {
                 last.1.push(entry.user_id);
                 continue;
             }
