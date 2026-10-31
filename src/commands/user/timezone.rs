@@ -1,6 +1,6 @@
 use crate::types::Context;
 use crate::utils::DB;
-use chrono::{Offset, Timelike};
+use chrono::{Datelike, Offset, Timelike};
 use chrono_tz::{TZ_VARIANTS, Tz};
 use color_eyre::eyre::Result;
 use poise::CreateReply;
@@ -187,32 +187,52 @@ fn time_emoji(hour: u32) -> &'static str {
     }
 }
 
+/// Formats a date as `Tue 3 Nov` for a day header.
+fn day_header(date: chrono::NaiveDate) -> String {
+    format!("{} {} {}", date.format("%a"), date.day(), date.format("%b"))
+}
+
 fn render_view(entries: &[Entry], detailed: bool) -> Vec<CreateEmbed> {
-    let lines = entries
-        .iter()
-        .map(|entry| {
-            let emoji = time_emoji(entry.local.hour());
-            if detailed {
-                format!(
-                    "{} {} - <@{}> - `{}` - {} ({})",
-                    emoji,
-                    entry.local.format("%H:%M"),
-                    entry.user_id,
-                    entry.tz_name,
-                    entry.local.format("%Z"),
-                    format_offset(entry.offset)
-                )
-            } else {
-                format!(
-                    "{} {} - <@{}> ({})",
-                    emoji,
-                    entry.local.format("%H:%M"),
-                    entry.user_id,
-                    short_zone(&entry.tz_name)
-                )
-            }
-        })
-        .collect::<Vec<_>>();
+    // Since entries are sorted by offset, local dates only ever increase.
+    // Only bother with headers when the list actually spans more than one day.
+    let multi_day = entries
+        .first()
+        .zip(entries.last())
+        .is_some_and(|(first, last)| first.local.date_naive() != last.local.date_naive());
+
+    let mut blocks = Vec::new();
+    let mut current_day = None;
+
+    for entry in entries {
+        let emoji = time_emoji(entry.local.hour());
+        let line = if detailed {
+            format!(
+                "{} {} - <@{}> - `{}` - {} ({})",
+                emoji,
+                entry.local.format("%H:%M"),
+                entry.user_id,
+                entry.tz_name,
+                entry.local.format("%Z"),
+                format_offset(entry.offset)
+            )
+        } else {
+            format!(
+                "{} {} - <@{}> ({})",
+                emoji,
+                entry.local.format("%H:%M"),
+                entry.user_id,
+                short_zone(&entry.tz_name)
+            )
+        };
+
+        let day = entry.local.date_naive();
+        if multi_day && current_day != Some(day) {
+            blocks.push(format!("**{}**\n{line}", day_header(day)));
+            current_day = Some(day);
+        } else {
+            blocks.push(line);
+        }
+    }
 
     let footer = format!(
         "{} {} · sorted by time",
@@ -224,7 +244,7 @@ fn render_view(entries: &[Entry], detailed: bool) -> Vec<CreateEmbed> {
         },
     );
 
-    let chunks = chunk_lines(&lines);
+    let chunks = chunk_lines(&blocks);
     let last = chunks.len().saturating_sub(1);
     chunks
         .into_iter()
@@ -452,17 +472,22 @@ mod tests {
     }
 
     #[test]
+    fn day_header_reads_like_a_calendar_date() {
+        let date = chrono::NaiveDate::from_ymd_opt(2026, 11, 3).unwrap();
+        assert_eq!(day_header(date), "Tue 3 Nov");
+    }
+
+    #[test]
     fn time_emoji_covers_the_day() {
         assert_eq!(time_emoji(0), "🌙");
-        assert_eq!(time_emoji(4), "🌙");
-        assert_eq!(time_emoji(5), "🌅");
-        assert_eq!(time_emoji(9), "🌅");
-        assert_eq!(time_emoji(10), "☀️");
+        assert_eq!(time_emoji(5), "🌙");
+        assert_eq!(time_emoji(6), "🌅");
+        assert_eq!(time_emoji(8), "🌅");
+        assert_eq!(time_emoji(9), "☀️");
         assert_eq!(time_emoji(17), "☀️");
         assert_eq!(time_emoji(18), "🌆");
-        assert_eq!(time_emoji(20), "🌆");
-        assert_eq!(time_emoji(21), "🌙");
-        assert_eq!(time_emoji(23), "🌙");
+        assert_eq!(time_emoji(21), "🌆");
+        assert_eq!(time_emoji(22), "🌙");
     }
 
     #[test]
