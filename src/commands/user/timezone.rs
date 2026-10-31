@@ -246,14 +246,14 @@ async fn autocomplete_timezone<'a>(
 
 /// Show and manage the timezones of people in this server.
 #[allow(clippy::unused_async)]
-#[poise::command(slash_command, guild_only, subcommands("add", "list", "remove"))]
+#[poise::command(slash_command, guild_only, subcommands("set", "list", "remove"))]
 pub async fn timezone(_: Context<'_>) -> Result<()> {
     Ok(())
 }
 
 /// Save your timezone so others can see what time it is for you.
 #[poise::command(slash_command, guild_only)]
-pub async fn add(
+pub async fn set(
     ctx: Context<'_>,
     #[description = "Your timezone as an IANA name, e.g. Europe/London"]
     #[autocomplete = "autocomplete_timezone"]
@@ -322,7 +322,7 @@ pub async fn list(
     if entries.is_empty() {
         ctx.send(
             CreateReply::default()
-                .content("No one has set a timezone here yet. Use `/timezone add` to be the first!")
+                .content("No one has set a timezone here yet. Use `/timezone set` to be the first!")
                 .ephemeral(true),
         )
         .await?;
