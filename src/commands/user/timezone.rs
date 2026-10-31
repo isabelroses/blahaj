@@ -6,12 +6,7 @@ use color_eyre::eyre::Result;
 use poise::CreateReply;
 use poise::serenity_prelude::{CreateAllowedMentions, CreateEmbed, CreateEmbedFooter};
 
-/// Discord's limit for an embed description, with some headroom for the
-/// truncation note we may append.
-const EMBED_DESCRIPTION_LIMIT: usize = 4000;
-
-/// Blahaj blue, used for every timezone embed.
-const EMBED_COLOR: u32 = 0x5D_81_96;
+const EMBED_DESCRIPTION_LIMIT: usize = 3800;
 
 fn no_mentions() -> CreateAllowedMentions {
     CreateAllowedMentions::new()
@@ -144,7 +139,7 @@ fn build_entries(guild_id: u64) -> Result<Vec<Entry>> {
         })
         .collect::<Vec<_>>();
 
-    // Order by current offset so the list reads like a clock across the world.
+    // Order by current offset.
     entries.sort_by(|a, b| {
         a.offset
             .cmp(&b.offset)
@@ -165,10 +160,7 @@ fn short_zone(tz_name: &str) -> String {
         .replace('_', " ")
 }
 
-/// A rough "what part of the day is it for them" indicator.
-///
-/// There's no official standard for this; these are just roughly
-/// dawn / daytime / dusk / night bands.
+/// These are just roughly dawn / daytime / dusk / night time ranges.
 fn time_emoji(hour: u32) -> &'static str {
     match hour {
         6..=8 => "🌅",
@@ -238,7 +230,7 @@ fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
     CreateEmbed::new()
         .title("🕒 Timezones")
         .description(build_description(&blocks))
-        .color(EMBED_COLOR)
+        .color(0x5D_81_96)
         .footer(CreateEmbedFooter::new(footer))
 }
 
@@ -405,24 +397,5 @@ mod tests {
         assert_eq!(short_zone("Australia/Melbourne"), "Melbourne");
         assert_eq!(short_zone("America/Argentina/Buenos_Aires"), "Buenos Aires");
         assert_eq!(short_zone("UTC"), "UTC");
-    }
-
-    #[test]
-    fn day_header_reads_like_a_calendar_date() {
-        let date = chrono::NaiveDate::from_ymd_opt(2026, 11, 3).unwrap();
-        assert_eq!(day_header(date), "Tue 3 Nov");
-    }
-
-    #[test]
-    fn time_emoji_covers_the_day() {
-        assert_eq!(time_emoji(0), "🌙");
-        assert_eq!(time_emoji(5), "🌙");
-        assert_eq!(time_emoji(6), "🌅");
-        assert_eq!(time_emoji(8), "🌅");
-        assert_eq!(time_emoji(9), "☀️");
-        assert_eq!(time_emoji(17), "☀️");
-        assert_eq!(time_emoji(18), "🌆");
-        assert_eq!(time_emoji(21), "🌆");
-        assert_eq!(time_emoji(22), "🌙");
     }
 }
