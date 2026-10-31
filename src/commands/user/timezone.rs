@@ -1,10 +1,10 @@
 use crate::types::Context;
 use crate::utils::DB;
-use chrono::Offset;
+use chrono::{Offset, Timelike};
 use chrono_tz::{TZ_VARIANTS, Tz};
 use color_eyre::eyre::Result;
 use poise::CreateReply;
-use poise::serenity_prelude::CreateEmbed;
+use poise::serenity_prelude::{CreateAllowedMentions, CreateEmbed, CreateEmbedFooter};
 
 /// Discord's limit for an embed description, with some headroom for the
 /// truncation note we may append.
@@ -13,16 +13,21 @@ const EMBED_DESCRIPTION_LIMIT: usize = 4000;
 /// Discord only renders the first ten embeds of a message.
 const MAX_EMBEDS: usize = 10;
 
+/// Blahaj blue, used for every timezone embed.
+const EMBED_COLOR: u32 = 0x5D_81_96;
+
+fn no_mentions() -> CreateAllowedMentions {
+    CreateAllowedMentions::new()
+        .everyone(false)
+        .all_users(false)
+        .all_roles(false)
+        .replied_user(false)
+        .empty_users()
+        .empty_roles()
+}
+
 fn safe_reply() -> CreateReply {
-    CreateReply::default().allowed_mentions(
-        poise::serenity_prelude::CreateAllowedMentions::new()
-            .everyone(false)
-            .all_users(false)
-            .all_roles(false)
-            .replied_user(false)
-            .empty_users()
-            .empty_roles(),
-    )
+    CreateReply::default().allowed_mentions(no_mentions())
 }
 
 /// Resolves a user-supplied timezone name to a canonical IANA zone.
@@ -122,6 +127,123 @@ fn chunk_lines(lines: &[String]) -> Vec<String> {
     chunks
 }
 
+struct Entry {
+    user_id: u64,
+    tz_name: String,
+    offset: i32,
+    local: chrono::DateTime<Tz>,
+}
+
+/// Reads everyone's saved timezone and works out their local time right now.
+fn build_entries(guild_id: u64) -> Result<Vec<Entry>> {
+    let now = chrono::Utc::now();
+    let mut entries = list_timezones(guild_id)?
+        .into_iter()
+        .filter_map(|(user_id, name)| {
+            let tz: Tz = name.parse().ok()?;
+            let local = now.with_timezone(&tz);
+            let offset = local.offset().fix().local_minus_utc();
+
+            Some(Entry {
+                user_id,
+                tz_name: tz.name().to_string(),
+                offset,
+                local,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    // Order by current offset so the list reads like a clock across the world.
+    entries.sort_by(|a, b| {
+        a.offset
+            .cmp(&b.offset)
+            .then_with(|| a.tz_name.cmp(&b.tz_name))
+            .then_with(|| a.user_id.cmp(&b.user_id))
+    });
+
+    Ok(entries)
+}
+
+/// The last component of an IANA name, e.g. `Australia/Melbourne` -> `Melbourne`.
+/// Underscores become spaces so `Buenos_Aires` reads as `Buenos Aires`.
+fn short_zone(tz_name: &str) -> String {
+    tz_name
+        .rsplit('/')
+        .next()
+        .unwrap_or(tz_name)
+        .replace('_', " ")
+}
+
+/// A rough "what part of the day is it for them" indicator.
+///
+/// There's no official standard for this; these are just roughly
+/// dawn / daytime / dusk / night bands.
+fn time_emoji(hour: u32) -> &'static str {
+    match hour {
+        6..=8 => "🌅",
+        9..=17 => "☀️",
+        18..=21 => "🌆",
+        _ => "🌙",
+    }
+}
+
+fn render_view(entries: &[Entry], detailed: bool) -> Vec<CreateEmbed> {
+    let lines = entries
+        .iter()
+        .map(|entry| {
+            let emoji = time_emoji(entry.local.hour());
+            if detailed {
+                format!(
+                    "{} {} - <@{}> - `{}` - {} ({})",
+                    emoji,
+                    entry.local.format("%H:%M"),
+                    entry.user_id,
+                    entry.tz_name,
+                    entry.local.format("%Z"),
+                    format_offset(entry.offset)
+                )
+            } else {
+                format!(
+                    "{} {} - <@{}> ({})",
+                    emoji,
+                    entry.local.format("%H:%M"),
+                    entry.user_id,
+                    short_zone(&entry.tz_name)
+                )
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let footer = format!(
+        "{} {} · sorted by time",
+        entries.len(),
+        if entries.len() == 1 {
+            "person"
+        } else {
+            "people"
+        },
+    );
+
+    let chunks = chunk_lines(&lines);
+    let last = chunks.len().saturating_sub(1);
+    chunks
+        .into_iter()
+        .enumerate()
+        .map(|(index, description)| {
+            let mut embed = CreateEmbed::new()
+                .description(description)
+                .color(EMBED_COLOR);
+            if index == 0 {
+                embed = embed.title("🕒 Timezones");
+            }
+            if index == last {
+                embed = embed.footer(CreateEmbedFooter::new(footer.clone()));
+            }
+            embed
+        })
+        .collect()
+}
+
 async fn autocomplete_timezone<'a>(
     _ctx: Context<'_>,
     partial: &'a str,
@@ -179,7 +301,7 @@ pub async fn add(
     ctx.send(
         safe_reply()
             .content(format!(
-                "Saved your timezone as `{}` — it's currently {} for you.",
+                "Saved your timezone as `{}` - it's currently {} for you.",
                 tz.name(),
                 local.format("%H:%M %Z")
             ))
@@ -192,7 +314,12 @@ pub async fn add(
 
 /// List the timezones everyone in this server has set.
 #[poise::command(slash_command, guild_only)]
-pub async fn list(ctx: Context<'_>) -> Result<()> {
+pub async fn list(
+    ctx: Context<'_>,
+    #[description = "Show timezone codes and UTC offsets (default: false)"] show_details: Option<
+        bool,
+    >,
+) -> Result<()> {
     let Some(guild_id) = ctx.guild_id() else {
         ctx.send(
             safe_reply()
@@ -203,16 +330,7 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let now = chrono::Utc::now();
-    let mut entries = list_timezones(guild_id.get())?
-        .into_iter()
-        .filter_map(|(user_id, name)| {
-            let tz: Tz = name.parse().ok()?;
-            let local = now.with_timezone(&tz);
-            let offset = local.offset().fix().local_minus_utc();
-            Some((offset, tz.name().to_string(), user_id, local))
-        })
-        .collect::<Vec<_>>();
+    let entries = build_entries(guild_id.get())?;
 
     if entries.is_empty() {
         ctx.send(
@@ -224,33 +342,11 @@ pub async fn list(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     }
 
-    // Order by current offset so the list reads like a clock across the world.
-    entries.sort_by(|a, b| {
-        a.0.cmp(&b.0)
-            .then_with(|| a.1.cmp(&b.1))
-            .then_with(|| a.2.cmp(&b.2))
-    });
-
-    let lines = entries
-        .into_iter()
-        .map(|(offset, name, user_id, local)| {
-            format!(
-                "<@{user_id}> — `{name}` — {} ({})",
-                local.format("%H:%M %Z"),
-                format_offset(offset)
-            )
-        })
-        .collect::<Vec<_>>();
-
-    let embeds = chunk_lines(&lines)
-        .into_iter()
-        .map(|description| CreateEmbed::new().description(description))
-        .collect::<Vec<_>>();
-
-    let mut reply = safe_reply().content("**Timezones in this server**");
+    let embeds = render_view(&entries, show_details.unwrap_or(false));
+    let mut reply = safe_reply();
     reply.embeds = embeds;
-    ctx.send(reply).await?;
 
+    ctx.send(reply).await?;
     Ok(())
 }
 
@@ -346,6 +442,27 @@ mod tests {
                 .all(|chunk| chunk.len() <= EMBED_DESCRIPTION_LIMIT)
         );
         assert_eq!(chunks.concat().matches('x').count(), 10_000);
+    }
+
+    #[test]
+    fn short_zone_keeps_only_the_last_component() {
+        assert_eq!(short_zone("Australia/Melbourne"), "Melbourne");
+        assert_eq!(short_zone("America/Argentina/Buenos_Aires"), "Buenos Aires");
+        assert_eq!(short_zone("UTC"), "UTC");
+    }
+
+    #[test]
+    fn time_emoji_covers_the_day() {
+        assert_eq!(time_emoji(0), "🌙");
+        assert_eq!(time_emoji(4), "🌙");
+        assert_eq!(time_emoji(5), "🌅");
+        assert_eq!(time_emoji(9), "🌅");
+        assert_eq!(time_emoji(10), "☀️");
+        assert_eq!(time_emoji(17), "☀️");
+        assert_eq!(time_emoji(18), "🌆");
+        assert_eq!(time_emoji(20), "🌆");
+        assert_eq!(time_emoji(21), "🌙");
+        assert_eq!(time_emoji(23), "🌙");
     }
 
     #[test]
