@@ -190,12 +190,11 @@ fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
         let emoji = time_emoji(entry.local.hour());
         let line = if detailed {
             format!(
-                "{} {} - <@{}> - `{}` - {} ({})",
+                "{} {} - <@{}> - `{}` - {}",
                 emoji,
                 entry.local.format("%H:%M"),
                 entry.user_id,
                 entry.tz_name,
-                entry.local.format("%Z"),
                 format_offset(entry.offset)
             )
         } else {
@@ -293,7 +292,7 @@ pub async fn add(
             .content(format!(
                 "Saved your timezone as `{}` - it's currently {} for you.",
                 tz.name(),
-                local.format("%H:%M %Z")
+                local.format("%H:%M")
             ))
             .ephemeral(true),
     )
