@@ -304,6 +304,9 @@ pub async fn set(
 pub async fn list(
     ctx: Context<'_>,
     #[description = "Show timezone UTC offsets (default: false)"] show_utc_offsets: Option<bool>,
+    #[description = "Make the response visible only to you (default: false)"] ephemeral: Option<
+        bool,
+    >,
 ) -> Result<()> {
     let Some(guild_id) = ctx.guild_id() else {
         ctx.send(
@@ -327,8 +330,9 @@ pub async fn list(
         return Ok(());
     }
 
-    let reply =
-        CreateReply::default().embed(render_view(&entries, show_utc_offsets.unwrap_or(false)));
+    let reply = CreateReply::default()
+        .embed(render_view(&entries, show_utc_offsets.unwrap_or(false)))
+        .ephemeral(ephemeral.unwrap_or(false));
 
     ctx.send(reply).await?;
     Ok(())
