@@ -172,11 +172,11 @@ fn render_view(entries: &[Entry], utc_offsets: bool) -> CreateEmbed {
     let mut blocks = Vec::new();
     let mut current_day = None;
 
-    // Group consecutive entries sharing the same local time & timezone
+    // Group consecutive entries sharing the same timezone
     let mut grouped_entries: Vec<(&Entry, Vec<u64>)> = Vec::new();
     for entry in entries {
         if let Some(last) = grouped_entries.last_mut() {
-            if last.0.local == entry.local && last.0.tz_name == entry.tz_name {
+            if last.0.tz_name == entry.tz_name {
                 last.1.push(entry.user_id);
                 continue;
             }
