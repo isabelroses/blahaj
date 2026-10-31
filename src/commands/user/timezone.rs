@@ -4,23 +4,9 @@ use chrono::{Datelike, Offset, Timelike};
 use chrono_tz::{TZ_VARIANTS, Tz};
 use color_eyre::eyre::Result;
 use poise::CreateReply;
-use poise::serenity_prelude::{CreateAllowedMentions, CreateEmbed, CreateEmbedFooter};
+use poise::serenity_prelude::{CreateEmbed, CreateEmbedFooter};
 
 const EMBED_DESCRIPTION_LIMIT: usize = 3800;
-
-fn no_mentions() -> CreateAllowedMentions {
-    CreateAllowedMentions::new()
-        .everyone(false)
-        .all_users(false)
-        .all_roles(false)
-        .replied_user(false)
-        .empty_users()
-        .empty_roles()
-}
-
-fn safe_reply() -> CreateReply {
-    CreateReply::default().allowed_mentions(no_mentions())
-}
 
 /// Resolves a user-supplied timezone name to a canonical IANA zone.
 ///
@@ -263,7 +249,7 @@ pub async fn add(
 ) -> Result<()> {
     let Some(guild_id) = ctx.guild_id() else {
         ctx.send(
-            safe_reply()
+            CreateReply::default()
                 .content("This command can only be used in a server.")
                 .ephemeral(true),
         )
@@ -273,7 +259,7 @@ pub async fn add(
 
     let Some(tz) = normalize_timezone(&timezone) else {
         ctx.send(
-            safe_reply()
+            CreateReply::default()
                 .content(format!(
                     "`{timezone}` isn't a timezone I recognise. Use an IANA name like \
                      `Europe/London` or `America/New_York`."
@@ -288,7 +274,7 @@ pub async fn add(
 
     let local = chrono::Utc::now().with_timezone(&tz);
     ctx.send(
-        safe_reply()
+        CreateReply::default()
             .content(format!(
                 "Saved your timezone as `{}` - it's currently {} for you.",
                 tz.name(),
@@ -311,7 +297,7 @@ pub async fn list(
 ) -> Result<()> {
     let Some(guild_id) = ctx.guild_id() else {
         ctx.send(
-            safe_reply()
+            CreateReply::default()
                 .content("This command can only be used in a server.")
                 .ephemeral(true),
         )
@@ -323,7 +309,7 @@ pub async fn list(
 
     if entries.is_empty() {
         ctx.send(
-            safe_reply()
+            CreateReply::default()
                 .content("No one has set a timezone here yet. Use `/timezone add` to be the first!")
                 .ephemeral(true),
         )
@@ -331,7 +317,7 @@ pub async fn list(
         return Ok(());
     }
 
-    let reply = safe_reply().embed(render_view(&entries, show_details.unwrap_or(false)));
+    let reply = CreateReply::default().embed(render_view(&entries, show_details.unwrap_or(false)));
 
     ctx.send(reply).await?;
     Ok(())
@@ -342,7 +328,7 @@ pub async fn list(
 pub async fn remove(ctx: Context<'_>) -> Result<()> {
     let Some(guild_id) = ctx.guild_id() else {
         ctx.send(
-            safe_reply()
+            CreateReply::default()
                 .content("This command can only be used in a server.")
                 .ephemeral(true),
         )
@@ -357,7 +343,7 @@ pub async fn remove(ctx: Context<'_>) -> Result<()> {
         "You don't have a timezone saved in this server."
     };
 
-    ctx.send(safe_reply().content(message).ephemeral(true))
+    ctx.send(CreateReply::default().content(message).ephemeral(true))
         .await?;
     Ok(())
 }
