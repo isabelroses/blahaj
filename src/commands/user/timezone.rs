@@ -176,20 +176,20 @@ fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
         let emoji = time_emoji(entry.local.hour());
         let line = if detailed {
             format!(
-                "{} {} - <@{}> - `{}` - {}",
+                "{} {} - `{}` ({}) - <@{}>",
                 emoji,
                 entry.local.format("%H:%M"),
-                entry.user_id,
                 entry.tz_name,
-                format_offset(entry.offset)
+                format_offset(entry.offset),
+                entry.user_id
             )
         } else {
             format!(
-                "{} {} - <@{}> ({})",
+                "{} {} - {} <@{}>",
                 emoji,
                 entry.local.format("%H:%M"),
-                entry.user_id,
-                short_zone(&entry.tz_name)
+                short_zone(&entry.tz_name),
+                entry.user_id
             )
         };
 
