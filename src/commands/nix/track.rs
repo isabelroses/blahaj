@@ -49,7 +49,8 @@ pub async fn nixpkgs_track(
             CreateEmbed::new()
                 .title(title)
                 .url(url)
-                .description("This pull request is very old. I can't track it!"),
+                .description("This pull request is very old. I can't track it!")
+                .color(0xF3_8B_A8),
         );
         ctx.send(embed).await?;
         return Ok(());
@@ -105,7 +106,8 @@ pub async fn nixpkgs_track(
         CreateEmbed::new()
             .title(title)
             .url(url)
-            .description(description),
+            .description(description)
+            .color(0x4D_6F_B7),
     );
     ctx.send(embed).await?;
     Ok(())
@@ -164,7 +166,8 @@ async fn notify_reached_target(
     let embed = CreateEmbed::new()
         .title(format!("{} - #{}", pr.title, pr.number))
         .url(&pr.html_url)
-        .description(description);
+        .description(description)
+        .color(0x4D_6F_B7);
 
     let user = UserId::new(row.user_id);
     let dm_sent = match user.create_dm_channel(serenity).await {
