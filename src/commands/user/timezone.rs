@@ -10,9 +10,6 @@ use poise::serenity_prelude::{CreateAllowedMentions, CreateEmbed, CreateEmbedFoo
 /// truncation note we may append.
 const EMBED_DESCRIPTION_LIMIT: usize = 4000;
 
-/// Discord only renders the first ten embeds of a message.
-const MAX_EMBEDS: usize = 10;
-
 /// Blahaj blue, used for every timezone embed.
 const EMBED_COLOR: u32 = 0x5D_81_96;
 
@@ -95,36 +92,30 @@ fn list_timezones(guild_id: u64) -> Result<Vec<(u64, String)>> {
     Ok(rows)
 }
 
-/// Splits lines into embed descriptions that stay under Discord's limit.
-fn chunk_lines(lines: &[String]) -> Vec<String> {
-    let mut chunks = Vec::new();
-    let mut current = String::new();
+/// Joins lines into one embed description, truncating if it would exceed
+/// Discord's limit.
+fn build_description(lines: &[String]) -> String {
+    let mut description = String::new();
+    let mut shown = 0;
 
     for line in lines {
-        let added = line.len() + usize::from(!current.is_empty());
-        if !current.is_empty() && current.len() + added > EMBED_DESCRIPTION_LIMIT {
-            chunks.push(std::mem::take(&mut current));
+        let added = line.len() + usize::from(!description.is_empty());
+        if !description.is_empty() && description.len() + added > EMBED_DESCRIPTION_LIMIT {
+            break;
         }
 
-        if !current.is_empty() {
-            current.push('\n');
+        if !description.is_empty() {
+            description.push('\n');
         }
-        current.push_str(line);
+        description.push_str(line);
+        shown += 1;
     }
 
-    if !current.is_empty() {
-        chunks.push(current);
+    if shown < lines.len() {
+        description.push_str(&format!("\n…and {} more.", lines.len() - shown));
     }
 
-    if chunks.len() > MAX_EMBEDS {
-        let dropped = chunks.len() - MAX_EMBEDS;
-        chunks.truncate(MAX_EMBEDS);
-        if let Some(last) = chunks.last_mut() {
-            last.push_str(&format!("\n…and {dropped} more."));
-        }
-    }
-
-    chunks
+    description
 }
 
 struct Entry {
@@ -192,7 +183,7 @@ fn day_header(date: chrono::NaiveDate) -> String {
     format!("{} {} {}", date.format("%a"), date.day(), date.format("%b"))
 }
 
-fn render_view(entries: &[Entry], detailed: bool) -> Vec<CreateEmbed> {
+fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
     // Since entries are sorted by offset, local dates only ever increase.
     // Only bother with headers when the list actually spans more than one day.
     let multi_day = entries
@@ -244,24 +235,11 @@ fn render_view(entries: &[Entry], detailed: bool) -> Vec<CreateEmbed> {
         },
     );
 
-    let chunks = chunk_lines(&blocks);
-    let last = chunks.len().saturating_sub(1);
-    chunks
-        .into_iter()
-        .enumerate()
-        .map(|(index, description)| {
-            let mut embed = CreateEmbed::new()
-                .description(description)
-                .color(EMBED_COLOR);
-            if index == 0 {
-                embed = embed.title("🕒 Timezones");
-            }
-            if index == last {
-                embed = embed.footer(CreateEmbedFooter::new(footer.clone()));
-            }
-            embed
-        })
-        .collect()
+    CreateEmbed::new()
+        .title("🕒 Timezones")
+        .description(build_description(&blocks))
+        .color(EMBED_COLOR)
+        .footer(CreateEmbedFooter::new(footer))
 }
 
 async fn autocomplete_timezone<'a>(
@@ -362,9 +340,7 @@ pub async fn list(
         return Ok(());
     }
 
-    let embeds = render_view(&entries, show_details.unwrap_or(false));
-    let mut reply = safe_reply();
-    reply.embeds = embeds;
+    let reply = safe_reply().embed(render_view(&entries, show_details.unwrap_or(false)));
 
     ctx.send(reply).await?;
     Ok(())
@@ -425,21 +401,6 @@ mod tests {
     }
 
     #[test]
-    fn chunk_lines_splits_at_the_description_limit() {
-        let line = "x".repeat(1000);
-        let lines = vec![line; 10];
-        let chunks = chunk_lines(&lines);
-
-        assert!(chunks.len() > 1);
-        assert!(
-            chunks
-                .iter()
-                .all(|chunk| chunk.len() <= EMBED_DESCRIPTION_LIMIT)
-        );
-        assert_eq!(chunks.concat().matches('x').count(), 10_000);
-    }
-
-    #[test]
     fn short_zone_keeps_only_the_last_component() {
         assert_eq!(short_zone("Australia/Melbourne"), "Melbourne");
         assert_eq!(short_zone("America/Argentina/Buenos_Aires"), "Buenos Aires");
@@ -463,15 +424,5 @@ mod tests {
         assert_eq!(time_emoji(18), "🌆");
         assert_eq!(time_emoji(21), "🌆");
         assert_eq!(time_emoji(22), "🌙");
-    }
-
-    #[test]
-    fn chunk_lines_caps_the_embed_count() {
-        let line = "y".repeat(EMBED_DESCRIPTION_LIMIT);
-        let lines = vec![line; MAX_EMBEDS + 3];
-        let chunks = chunk_lines(&lines);
-
-        assert_eq!(chunks.len(), MAX_EMBEDS);
-        assert!(chunks.last().unwrap().contains("and 3 more"));
     }
 }
