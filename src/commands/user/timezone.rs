@@ -161,7 +161,7 @@ fn day_header(date: chrono::NaiveDate) -> String {
     format!("{} {} {}", date.format("%a"), date.day(), date.format("%b"))
 }
 
-fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
+fn render_view(entries: &[Entry], utc_offsets: bool) -> CreateEmbed {
     // Since entries are sorted by offset, local dates only ever increase.
     // Only bother with headers when the list actually spans more than one day.
     let multi_day = entries
@@ -192,7 +192,7 @@ fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
             .collect::<Vec<_>>()
             .join(" ");
 
-        let line = if detailed {
+        let line = if utc_offsets {
             format!(
                 "{} {} - {} ({} - {})",
                 emoji,
@@ -303,9 +303,7 @@ pub async fn set(
 #[poise::command(slash_command, guild_only)]
 pub async fn list(
     ctx: Context<'_>,
-    #[description = "Show timezone codes and UTC offsets (default: false)"] show_details: Option<
-        bool,
-    >,
+    #[description = "Show timezone UTC offsets (default: false)"] show_utc_offsets: Option<bool>,
 ) -> Result<()> {
     let Some(guild_id) = ctx.guild_id() else {
         ctx.send(
@@ -329,7 +327,8 @@ pub async fn list(
         return Ok(());
     }
 
-    let reply = CreateReply::default().embed(render_view(&entries, show_details.unwrap_or(false)));
+    let reply =
+        CreateReply::default().embed(render_view(&entries, show_utc_offsets.unwrap_or(false)));
 
     ctx.send(reply).await?;
     Ok(())
