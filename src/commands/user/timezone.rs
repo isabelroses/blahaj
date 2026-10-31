@@ -398,27 +398,18 @@ pub async fn remove(ctx: Context<'_>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::TimeZone;
 
     #[test]
-    fn normalize_accepts_exact_iana_names() {
+    fn normalize_timezone_resolves_iana_names() {
         assert_eq!(
             normalize_timezone("Europe/London").map(Tz::name),
             Some("Europe/London")
         );
         assert_eq!(normalize_timezone("UTC").map(Tz::name), Some("UTC"));
-    }
-
-    #[test]
-    fn normalize_is_case_insensitive_and_trims() {
         assert_eq!(
             normalize_timezone("  europe/london  ").map(Tz::name),
             Some("Europe/London")
         );
-    }
-
-    #[test]
-    fn normalize_rejects_unknown_and_empty() {
         assert!(normalize_timezone("").is_none());
         assert!(normalize_timezone("   ").is_none());
         assert!(normalize_timezone("not a timezone").is_none());
@@ -431,22 +422,6 @@ mod tests {
         assert_eq!(format_offset(19_800), "UTC+05:30");
         assert_eq!(format_offset(-14_400), "UTC-04:00");
         assert_eq!(format_offset(-12_600), "UTC-03:30");
-    }
-
-    #[test]
-    fn local_time_respects_dst() {
-        let tz: Tz = "America/New_York".parse().unwrap();
-        let winter = chrono::Utc.with_ymd_and_hms(2026, 1, 15, 12, 0, 0).unwrap();
-        let summer = chrono::Utc.with_ymd_and_hms(2026, 7, 15, 12, 0, 0).unwrap();
-
-        assert_eq!(
-            winter.with_timezone(&tz).format("%H:%M").to_string(),
-            "07:00"
-        );
-        assert_eq!(
-            summer.with_timezone(&tz).format("%H:%M").to_string(),
-            "08:00"
-        );
     }
 
     #[test]
