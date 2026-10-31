@@ -172,30 +172,47 @@ fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
     let mut blocks = Vec::new();
     let mut current_day = None;
 
+    // Group consecutive entries sharing the same local time & timezone
+    let mut grouped_entries: Vec<(&Entry, Vec<u64>)> = Vec::new();
     for entry in entries {
+        if let Some(last) = grouped_entries.last_mut() {
+            if last.0.local == entry.local && last.0.tz_name == entry.tz_name {
+                last.1.push(entry.user_id);
+                continue;
+            }
+        }
+        grouped_entries.push((entry, vec![entry.user_id]));
+    }
+
+    for (entry, user_ids) in grouped_entries {
         let emoji = time_emoji(entry.local.hour());
+        let mentions = user_ids
+            .iter()
+            .map(|id| format!("<@{id}>"))
+            .collect::<Vec<_>>()
+            .join(" ");
+
         let line = if detailed {
             format!(
-                "{} {} - `{}` ({}) - <@{}>",
+                "{} {} - {} ({} - {})",
                 emoji,
                 entry.local.format("%H:%M"),
-                entry.tz_name,
+                mentions,
+                short_zone(&entry.tz_name),
                 format_offset(entry.offset),
-                entry.user_id
             )
         } else {
             format!(
-                "{} {} - {} <@{}>",
+                "{} {} - {} ({})",
                 emoji,
                 entry.local.format("%H:%M"),
+                mentions,
                 short_zone(&entry.tz_name),
-                entry.user_id
             )
         };
 
         let day = entry.local.date_naive();
         if multi_day && current_day != Some(day) {
-            // separate day groups (if applicable) with new lines
             let header = format!("**{}**\n{line}", day_header(day));
             if current_day.is_some() {
                 blocks.push(format!("\n{header}"));
