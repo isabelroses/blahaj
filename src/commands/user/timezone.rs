@@ -4,7 +4,7 @@ use chrono::{Datelike, Offset, Timelike};
 use chrono_tz::{TZ_VARIANTS, Tz};
 use color_eyre::eyre::Result;
 use poise::CreateReply;
-use poise::serenity_prelude::{CreateEmbed};
+use poise::serenity_prelude::CreateEmbed;
 
 const EMBED_DESCRIPTION_LIMIT: usize = 3800;
 
@@ -195,7 +195,13 @@ fn render_view(entries: &[Entry], detailed: bool) -> CreateEmbed {
 
         let day = entry.local.date_naive();
         if multi_day && current_day != Some(day) {
-            blocks.push(format!("**{}**\n{line}", day_header(day)));
+            // separate day groups (if applicable) with new lines
+            let header = format!("**{}**\n{line}", day_header(day));
+            if current_day.is_some() {
+                blocks.push(format!("\n{header}"));
+            } else {
+                blocks.push(header);
+            }
             current_day = Some(day);
         } else {
             blocks.push(line);
