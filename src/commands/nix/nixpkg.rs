@@ -137,7 +137,7 @@ pub async fn nixpkg(
             },
             false,
         )
-        .color(0x00DE_A586);
+        .color(0x4D_6F_B7);
 
     ctx.send(CreateReply::default().embed(embed)).await?;
 

@@ -171,7 +171,8 @@ pub async fn nixpkgs(
         CreateEmbed::new()
             .title(format!("{} - #{}", pull_request.title, pull_request.number))
             .url(pull_request.html_url)
-            .description(format_branch_statuses(&statuses)),
+            .description(format_branch_statuses(&statuses))
+            .color(0x4D_6F_B7),
     );
 
     ctx.send(embed).await?;

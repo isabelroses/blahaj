@@ -25,7 +25,7 @@ pub async fn whois(
         CreateEmbed::default()
             .title(&user.name)
             .thumbnail(user.avatar_url().expect("avatar failed"))
-            .color(0x00ff_ffff)
+            .color(0x5D_81_96)
             .field("ID", user.id.to_string(), false)
             .field("Username", &user.name, false)
             .field("Created at", format!("<t:{created_at}:R>"), false)
