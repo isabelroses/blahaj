@@ -19,7 +19,7 @@ pub async fn event_handler(ctx: &Context, event: &FullEvent, data: &Data) -> Res
     replace_link::handle(ctx, event, data).await?;
     blahaj_is_this_true::handle(ctx, event, data).await?;
     avatarsync::handle(ctx, event, data).await?;
-    grok::handle(ctx, event, data).await?;
+    // grok::handle(ctx, event, data).await?;
     starboard::handle(ctx, event, data).await?;
 
     Ok(())
