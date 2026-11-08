@@ -33,6 +33,7 @@ typst = "0.15.1"
 typst-layout = "0.15.1"
 typst-render = "0.15.1"
 typst-kit = { version = "0.15.1", features = ["embedded-fonts"] }
+url = "2.5.8"
 
 [dependencies.reqwest]
 version = "0.12.12"
