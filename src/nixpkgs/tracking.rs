@@ -232,7 +232,8 @@ async fn notify(
     let embed = CreateEmbed::new()
         .title(pr.heading())
         .url(&pr.url)
-        .description(description);
+        .description(description)
+        .color(0x4D_6F_B7);
 
     let user = UserId::new(tracked.user_id);
     let dm_sent = match user.create_dm_channel(serenity).await {
