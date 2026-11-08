@@ -1,5 +1,4 @@
 use reqwest::Client;
-use std::convert::AsRef;
 
 #[derive(Debug)]
 // User data, which is stored and accessible in all command invocations
@@ -21,12 +20,3 @@ impl Data {
 }
 
 pub type Context<'a> = poise::Context<'a, Data, color_eyre::eyre::Report>;
-
-// wrapper for reqwest::Client
-pub struct W<T>(pub T);
-
-impl AsRef<Client> for W<Client> {
-    fn as_ref(&self) -> &reqwest::Client {
-        &self.0
-    }
-}

@@ -1,55 +1,27 @@
+use crate::color_roles;
+use crate::db;
 use crate::types::Context;
-use crate::utils::DB;
 use color_eyre::eyre::Result;
 use poise::CreateReply;
 use poise::serenity_prelude::{Colour, EditRole, RoleId, UserId};
-use rusqlite::params;
 
-fn get_user_role(user_id: UserId, guild_id: u64) -> Option<(RoleId, String)> {
-    let conn = DB.lock().ok()?;
-    let mut stmt = conn
-        .prepare("SELECT role_id, role_name FROM color_roles WHERE user_id = ? AND guild_id = ?")
-        .ok()?;
-
-    stmt.query_row(
-        params![user_id.get().cast_signed(), guild_id.cast_signed()],
-        |row| {
-            let role_id: i64 = row.get(0)?;
-            let role_name: String = row.get(1)?;
-            Ok((RoleId::new(role_id.cast_unsigned()), role_name))
-        },
-    )
-    .ok()
+fn get_user_role(user_id: UserId, guild_id: u64) -> Result<Option<(RoleId, String)>> {
+    let role = db::with(|conn| color_roles::get(conn, user_id.get(), guild_id))?;
+    Ok(role.map(|r| (RoleId::new(r.role_id), r.name)))
 }
 
 fn save_user_role(user_id: UserId, guild_id: u64, role_id: RoleId, role_name: &str) -> Result<()> {
-    let conn = DB.lock().unwrap();
-    conn.execute(
-        "INSERT OR REPLACE INTO color_roles (user_id, guild_id, role_id, role_name) VALUES (?, ?, ?, ?)",
-        params![user_id.get().cast_signed(), guild_id.cast_signed(), role_id.get().cast_signed(), role_name],
-    )?;
+    db::with(|conn| color_roles::save(conn, user_id.get(), guild_id, role_id.get(), role_name))?;
     Ok(())
 }
 
 fn delete_user_role(user_id: UserId, guild_id: u64) -> Result<()> {
-    let conn = DB.lock().unwrap();
-    conn.execute(
-        "DELETE FROM color_roles WHERE user_id = ? AND guild_id = ?",
-        params![user_id.get().cast_signed(), guild_id.cast_signed()],
-    )?;
+    db::with(|conn| color_roles::delete(conn, user_id.get(), guild_id))?;
     Ok(())
 }
 
 fn update_role_name(user_id: UserId, guild_id: u64, new_name: &str) -> Result<()> {
-    let conn = DB.lock().unwrap();
-    conn.execute(
-        "UPDATE color_roles SET role_name = ? WHERE user_id = ? AND guild_id = ?",
-        params![
-            new_name,
-            user_id.get().cast_signed(),
-            guild_id.cast_signed()
-        ],
-    )?;
+    db::with(|conn| color_roles::rename(conn, user_id.get(), guild_id, new_name))?;
     Ok(())
 }
 
@@ -75,7 +47,7 @@ pub async fn color_me(
     let username = &ctx.author().name;
 
     // check for existing role
-    let db_role = get_user_role(ctx.author().id, guild_id.get());
+    let db_role = get_user_role(ctx.author().id, guild_id.get())?;
 
     // they might not be in the db so lookup if there's a role with their username (previous behavior)
     let username_role = guild_id

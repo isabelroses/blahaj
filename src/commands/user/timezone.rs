@@ -1,5 +1,6 @@
+use crate::db;
+use crate::timezones;
 use crate::types::Context;
-use crate::utils::DB;
 use chrono::{Datelike, Offset, Timelike};
 use chrono_tz::{TZ_VARIANTS, Tz};
 use color_eyre::eyre::Result;
@@ -33,44 +34,6 @@ fn format_offset(seconds: i32) -> String {
     let sign = if seconds < 0 { '-' } else { '+' };
     let abs = seconds.abs();
     format!("UTC{sign}{:02}:{:02}", abs / 3600, (abs % 3600) / 60)
-}
-
-fn upsert_timezone(guild_id: u64, user_id: u64, timezone: &str) -> Result<()> {
-    let conn = DB.lock().unwrap();
-    conn.execute(
-        "INSERT INTO user_timezones (guild_id, user_id, timezone, updated_at)
-         VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT(guild_id, user_id)
-         DO UPDATE SET timezone = excluded.timezone, updated_at = excluded.updated_at",
-        rusqlite::params![
-            guild_id.cast_signed(),
-            user_id.cast_signed(),
-            timezone,
-            chrono::Utc::now().timestamp()
-        ],
-    )?;
-    Ok(())
-}
-
-fn remove_timezone(guild_id: u64, user_id: u64) -> Result<bool> {
-    let conn = DB.lock().unwrap();
-    let removed = conn.execute(
-        "DELETE FROM user_timezones WHERE guild_id = ?1 AND user_id = ?2",
-        rusqlite::params![guild_id.cast_signed(), user_id.cast_signed()],
-    )?;
-    Ok(removed > 0)
-}
-
-fn list_timezones(guild_id: u64) -> Result<Vec<(u64, String)>> {
-    let conn = DB.lock().unwrap();
-    let mut stmt =
-        conn.prepare("SELECT user_id, timezone FROM user_timezones WHERE guild_id = ?1")?;
-    let rows = stmt
-        .query_map([guild_id.cast_signed()], |row| {
-            Ok((row.get::<_, i64>(0)?.cast_unsigned(), row.get(1)?))
-        })?
-        .collect::<rusqlite::Result<Vec<(u64, String)>>>()?;
-    Ok(rows)
 }
 
 /// Joins lines into one embed description, truncating if it would exceed
@@ -109,7 +72,7 @@ struct Entry {
 /// Reads everyone's saved timezone and works out their local time right now.
 fn build_entries(guild_id: u64) -> Result<Vec<Entry>> {
     let now = chrono::Utc::now();
-    let mut entries = list_timezones(guild_id)?
+    let mut entries = db::with(|conn| timezones::list(conn, guild_id))?
         .into_iter()
         .filter_map(|(user_id, name)| {
             let tz: Tz = name.parse().ok()?;
@@ -282,7 +245,8 @@ pub async fn set(
         return Ok(());
     };
 
-    upsert_timezone(guild_id.get(), ctx.author().id.get(), tz.name())?;
+    let now = chrono::Utc::now().timestamp();
+    db::with(|conn| timezones::set(conn, guild_id.get(), ctx.author().id.get(), tz.name(), now))?;
 
     let local = chrono::Utc::now().with_timezone(&tz);
     ctx.send(
@@ -351,7 +315,7 @@ pub async fn remove(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let removed = remove_timezone(guild_id.get(), ctx.author().id.get())?;
+    let removed = db::with(|conn| timezones::remove(conn, guild_id.get(), ctx.author().id.get()))?;
     let message = if removed {
         "Your timezone has been removed from this server."
     } else {

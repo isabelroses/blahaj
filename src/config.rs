@@ -45,3 +45,8 @@ pub fn init() -> Result<&'static AppConfig> {
 pub fn get() -> &'static AppConfig {
     CONFIG.get().expect("config not initialized")
 }
+
+/// Where the databases live.
+pub fn data_dir() -> PathBuf {
+    get().data_dir.clone()
+}
