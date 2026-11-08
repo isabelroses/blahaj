@@ -1,5 +1,6 @@
+use crate::db;
+use crate::starboard::{Config, store};
 use crate::types::Context;
-use crate::utils::DB;
 use color_eyre::eyre::Result;
 use poise::CreateReply;
 use poise::serenity_prelude::ChannelId;
@@ -24,13 +25,11 @@ pub async fn starboard_enable(
 
     let threshold = threshold.unwrap_or(3).clamp(1, 100);
 
-    {
-        let conn = DB.lock().unwrap();
-        conn.execute(
-            "INSERT OR REPLACE INTO starboard_config (guild_id, channel_id, threshold) VALUES (?, ?, ?)",
-            [guild_id.get().cast_signed(), channel.get().cast_signed(), i64::from(threshold)],
-        )?;
-    }
+    let config = Config {
+        channel_id: channel.get(),
+        threshold: threshold.cast_unsigned(),
+    };
+    db::with(|conn| store::set_config(conn, guild_id.get(), config))?;
 
     ctx.send(
         CreateReply::default()
@@ -57,13 +56,7 @@ pub async fn starboard_disable(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    {
-        let conn = DB.lock().unwrap();
-        conn.execute(
-            "DELETE FROM starboard_config WHERE guild_id = ?",
-            [guild_id.get().cast_signed()],
-        )?;
-    }
+    db::with(|conn| store::delete_config(conn, guild_id.get()))?;
 
     ctx.send(
         CreateReply::default()
@@ -88,21 +81,13 @@ pub async fn starboard_config(ctx: Context<'_>) -> Result<()> {
         return Ok(());
     };
 
-    let config: Option<(u64, i32)> = {
-        let conn = DB.lock().unwrap();
-        conn.query_row(
-            "SELECT channel_id, threshold FROM starboard_config WHERE guild_id = ?",
-            [guild_id.get().cast_signed()],
-            |row| {
-                let channel_id: i64 = row.get(0)?;
-                let threshold: i32 = row.get(1)?;
-                Ok((channel_id.cast_unsigned(), threshold))
-            },
-        )
-        .ok()
-    };
+    let config = db::with(|conn| store::config(conn, guild_id.get()))?;
 
-    let response = if let Some((channel_id, threshold)) = config {
+    let response = if let Some(Config {
+        channel_id,
+        threshold,
+    }) = config
+    {
         format!(
             "⭐ **Starboard Configuration**\n- **Channel**: <#{channel_id}>\n- **Threshold**: {threshold} stars"
         )
