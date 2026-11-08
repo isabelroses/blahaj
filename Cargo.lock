@@ -230,6 +230,7 @@ dependencies = [
  "color-eyre",
  "confique",
  "dotenv",
+ "futures-util",
  "humantime",
  "kittycore",
  "nixpkgs-track_lib",

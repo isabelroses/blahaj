@@ -19,6 +19,7 @@ chrono-tz = "0.10.4"
 color-eyre = "0.6.5"
 confique = { version = "0.4.0", features = ["toml"] }
 dotenv = "0.15.0"
+futures-util = "0.3.33"
 humantime = "2.4.0"
 kittycore = "0.1.1"
 nixpkgs-track_lib = "0.5.0"
