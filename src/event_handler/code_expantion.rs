@@ -4,10 +4,12 @@
 use std::sync::LazyLock;
 
 use color_eyre::eyre::{Result, eyre};
-use poise::serenity_prelude::{Context, CreateAttachment, CreateEmbed, CreateMessage, FullEvent};
+use futures_util::future::join_all;
+use poise::serenity_prelude::{Context, FullEvent};
 use regex::Regex;
 use reqwest::Client;
 
+use crate::outbound::{self, Overflow};
 use crate::types::Data;
 
 static CODE_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -16,6 +18,9 @@ static CODE_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
     )
     .unwrap()
 });
+
+/// Largest file we will download to expand a code link.
+const MAX_FILE_BYTES: usize = 1024 * 1024;
 
 pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()> {
     if let FullEvent::Message { new_message } = event {
@@ -32,7 +37,12 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
                 .map(|block| block.content.as_str())
                 .collect::<Vec<&str>>()
                 .join("\n");
-            let response = format_long_response(&response_text, &attachment_name);
+            let response = outbound::fit(
+                &response_text,
+                Overflow::Attach {
+                    file_name: &attachment_name,
+                },
+            );
 
             new_message.channel_id.send_message(ctx, response).await?;
         }
@@ -47,32 +57,49 @@ struct CodeBlock {
 }
 
 async fn extract_code_blocks(msg: &str, client: &Client) -> Result<Vec<CodeBlock>> {
-    let mut blocks: Vec<CodeBlock> = Vec::new();
-
+    let mut requests = Vec::new();
     for caps in CODE_LINK_RE.captures_iter(msg) {
         let (host, repo, reference, file, start, end) = extract_url_components(&caps)?;
-
         let raw_url = construct_raw_url(host, repo, reference, file);
-
-        if let Ok(code_block) = fetch_code_block(client, &raw_url, start, end, file).await {
-            blocks.push(CodeBlock {
-                content: code_block,
-                file_name: file_name(file).to_string(),
-            });
-        }
+        requests.push((raw_url, start, end, file));
     }
 
-    Ok(blocks)
+    // Fetch concurrently; `join_all` keeps the message's order.
+    let blocks = join_all(
+        requests
+            .iter()
+            .map(|(raw_url, start, end, file)| async move {
+                let content = fetch_code_block(client, raw_url, *start, *end, file)
+                    .await
+                    .ok()?;
+                Some(CodeBlock {
+                    content,
+                    file_name: file_name(file).to_string(),
+                })
+            }),
+    )
+    .await;
+
+    Ok(blocks.into_iter().flatten().collect())
 }
 
-fn extract_url_components<'a>(
-    caps: &'a regex::Captures<'a>,
-) -> Result<(&'a str, &'a str, &'a str, &'a str, usize, usize)> {
-    let host = &caps["host"];
-    let repo = &caps["repo"];
-    let reference = &caps["reference"];
-    let file = &caps["file"];
-    let start = caps["start"].parse::<usize>()?;
+/// Pulls the parts of a code link out of a regex match. The returned slices
+/// borrow from the message text (`'h`) rather than from `caps`, so they outlive
+/// each match.
+fn extract_url_components<'h>(
+    caps: &regex::Captures<'h>,
+) -> Result<(&'h str, &'h str, &'h str, &'h str, usize, usize)> {
+    let group = |name: &str| {
+        caps.name(name)
+            .map(|m| m.as_str())
+            .ok_or_else(|| eyre!("code link is missing its {name}"))
+    };
+
+    let host = group("host")?;
+    let repo = group("repo")?;
+    let reference = group("reference")?;
+    let file = group("file")?;
+    let start = group("start")?.parse::<usize>()?;
     let end = caps
         .name("end")
         .map_or(Ok(start), |end| end.as_str().parse::<usize>())?;
@@ -100,12 +127,25 @@ async fn fetch_code_block(
     end: usize,
     file: &str,
 ) -> Result<String> {
-    let response = client.get(raw_url).send().await?;
+    if start == 0 || end < start {
+        return Err(eyre!("Invalid line range L{start}-L{end}"));
+    }
+
+    let mut response = client.get(raw_url).send().await?;
     if !response.status().is_success() {
         return Err(eyre!("Failed to fetch content from {}", raw_url));
     }
 
-    let text = response.text().await?;
+    // Only a few lines are ever shown, so stop reading huge files early.
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        body.extend_from_slice(&chunk);
+        if body.len() > MAX_FILE_BYTES {
+            return Err(eyre!("{raw_url} is too large to expand"));
+        }
+    }
+
+    let text = String::from_utf8_lossy(&body);
     let content = text
         .lines()
         .skip(start - 1)
@@ -126,26 +166,6 @@ fn format_code_block(language: &str, content: &str) -> String {
     format!("```{language}\n{content}\n```")
 }
 
-/// Formats a long text response for Discord by splitting it into content, embed, or file based
-/// on length.
-/// - <= 2000 chars: regular message content
-/// - 2001-4096 chars: embed description
-/// - > 4096 chars: content with first 2000 chars + file attachment
-fn format_long_response(text: &str, attachment_name: &str) -> CreateMessage {
-    let text_length = text.chars().count();
-
-    if text_length <= 2000 {
-        CreateMessage::new().content(text)
-    } else if text_length <= 4096 {
-        CreateMessage::new().embed(CreateEmbed::new().description(text))
-    } else {
-        let preview = text.chars().take(2000).collect::<String>();
-        let attachment = CreateAttachment::bytes(text.as_bytes(), attachment_name);
-
-        CreateMessage::new().content(preview).add_file(attachment)
-    }
-}
-
 fn attachment_name_for_code_blocks(code_blocks: &[CodeBlock]) -> String {
     if let [code_block] = code_blocks {
         code_block.file_name.clone()
@@ -163,4 +183,39 @@ fn file_name(path: &str) -> &str {
 
 fn remove_query_string(input: &str) -> &str {
     input.split('?').next().unwrap_or(input)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(link: &str) -> (String, usize, usize) {
+        let caps = CODE_LINK_RE.captures(link).expect("link should match");
+        let (host, repo, reference, file, start, end) = extract_url_components(&caps).unwrap();
+        (construct_raw_url(host, repo, reference, file), start, end)
+    }
+
+    #[test]
+    fn github_range_link() {
+        assert_eq!(
+            parse("see https://github.com/isabelroses/blahaj/blob/main/src/main.rs#L10-L20"),
+            (
+                "https://raw.githubusercontent.com/isabelroses/blahaj/main/src/main.rs".to_string(),
+                10,
+                20
+            )
+        );
+    }
+
+    #[test]
+    fn single_line_link_ends_where_it_starts() {
+        let (_, start, end) = parse("https://github.com/a/b/blob/main/x.rs#L7");
+        assert_eq!((start, end), (7, 7));
+    }
+
+    #[test]
+    fn non_github_host_uses_branch_raw_path() {
+        let (url, _, _) = parse("https://codeberg.org/a/b/src/branch/main/x.rs#L1-3");
+        assert_eq!(url, "https://codeberg.org/a/b/raw/branch/main/x.rs");
+    }
 }

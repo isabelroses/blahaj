@@ -3,11 +3,13 @@ use std::fmt::Write;
 use std::sync::LazyLock;
 
 use color_eyre::eyre::{Result, eyre};
-use poise::serenity_prelude::{Context, CreateEmbed, CreateMessage, Emoji, FullEvent, Message};
+use futures_util::future::join_all;
+use poise::serenity_prelude::{Context, Emoji, FullEvent, Message};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::replace_link;
+use crate::outbound::{self, Overflow};
 use crate::types::Data;
 
 const API_URL: &str = "https://opencode.ai/zen/v1/chat/completions";
@@ -116,9 +118,12 @@ pub async fn handle(ctx: &Context, event: &FullEvent, data: &Data) -> Result<()>
     // dropped, so it persists across slow model responses.
     let typing = new_message.channel_id.start_typing(&ctx.http);
 
-    let emojis = fetch_emojis(ctx, new_message).await;
-    let chain = collect_chain(ctx, new_message).await;
-    let link_contexts = fetch_link_contexts(data, &new_message.content).await;
+    // Independent lookups, so run them concurrently.
+    let (emojis, chain, link_contexts) = tokio::join!(
+        fetch_emojis(ctx, new_message),
+        collect_chain(ctx, new_message),
+        fetch_link_contexts(data, &new_message.content),
+    );
     let messages = build_messages(
         &chain,
         new_message,
@@ -206,18 +211,21 @@ async fn fetch_link_contexts(data: &Data, content: &str) -> Vec<LinkContext> {
     }
     let start = urls.len().saturating_sub(MAX_LINKS);
 
-    let mut contexts = Vec::new();
-    for url in &urls[start..] {
+    let contexts = join_all(urls[start..].iter().map(|url| async move {
         match fetch_link(data, url).await {
-            Ok(content) => contexts.push(LinkContext {
+            Ok(content) => Some(LinkContext {
                 url: (*url).to_string(),
                 content,
             }),
-            Err(err) => eprintln!("grok failed to fetch link {url}: {err}"),
+            Err(err) => {
+                eprintln!("grok failed to fetch link {url}: {err}");
+                None
+            }
         }
-    }
+    }))
+    .await;
 
-    contexts
+    contexts.into_iter().flatten().collect()
 }
 
 /// Fetches a single URL through defuddle and returns its markdown contents,
@@ -304,6 +312,12 @@ fn emote_list(emojis: &[Emoji]) -> Option<String> {
 async fn collect_chain(ctx: &Context, start: &Message) -> Vec<Message> {
     let mut chain: Vec<Message> = Vec::new();
 
+    // Discord already includes the immediate parent in the message event, so
+    // start from that and save a request.
+    if let Some(parent) = &start.referenced_message {
+        chain.push((**parent).clone());
+    }
+
     while chain.len() < MAX_CHAIN_DEPTH {
         // The chain owns each parent already, so walk from its tail rather than
         // keeping a cloned copy of the message we're currently at.
@@ -362,7 +376,7 @@ fn build_messages(
     }
 
     for msg in chain {
-        let raw = message_text(msg);
+        let raw = outbound::text_of(msg);
         let content = strip_emote_ids(&strip_trigger(&raw).unwrap_or(raw));
         if content.trim().is_empty() {
             continue;
@@ -387,21 +401,6 @@ fn build_messages(
     });
 
     messages
-}
-
-/// The textual content of a message for context purposes. Falls back to the
-/// embed descriptions when the plain content is empty, since blahaj's own long
-/// replies live in an embed description rather than the message body.
-fn message_text(msg: &Message) -> String {
-    if !msg.content.trim().is_empty() {
-        return msg.content.clone();
-    }
-
-    msg.embeds
-        .iter()
-        .filter_map(|embed| embed.description.as_deref())
-        .collect::<Vec<&str>>()
-        .join("\n\n")
 }
 
 /// The name to attribute a message to: the per-guild nickname if present,
@@ -443,25 +442,11 @@ async fn request_completion(data: &Data, messages: Vec<ChatMessage>) -> Result<S
     Ok(trimmed.to_string())
 }
 
-/// Replies to `message`, using an embed when the response is too long for a
-/// regular message and truncating if it exceeds the embed limit too.
+/// Replies to `message`, moving long replies into an embed and truncating
+/// past the embed limit.
 async fn send_reply(ctx: &Context, message: &Message, reply: &str) {
-    let length = reply.chars().count();
-
-    if length <= 2000 {
-        let _ = message.reply(&ctx.http, reply).await;
-    } else if length <= 4096 {
-        let builder = CreateMessage::new()
-            .embed(CreateEmbed::new().description(reply))
-            .reference_message(message);
-        let _ = message.channel_id.send_message(&ctx.http, builder).await;
-    } else {
-        let truncated: String = reply.chars().take(4093).collect();
-        let builder = CreateMessage::new()
-            .embed(CreateEmbed::new().description(format!("{truncated}...")))
-            .reference_message(message);
-        let _ = message.channel_id.send_message(&ctx.http, builder).await;
-    }
+    let builder = outbound::fit(reply, Overflow::Truncate).reference_message(message);
+    let _ = message.channel_id.send_message(&ctx.http, builder).await;
 }
 
 #[cfg(test)]

@@ -63,7 +63,10 @@ mod tests {
         set(&conn, 10, 1, "Asia/Tokyo", 200).unwrap();
         set(&conn, 20, 1, "America/New_York", 100).unwrap();
 
-        assert_eq!(list(&conn, 10).unwrap(), vec![(1, "Asia/Tokyo".to_string())]);
+        assert_eq!(
+            list(&conn, 10).unwrap(),
+            vec![(1, "Asia/Tokyo".to_string())]
+        );
         assert!(remove(&conn, 10, 1).unwrap());
         assert!(!remove(&conn, 10, 1).unwrap());
         assert_eq!(list(&conn, 10).unwrap(), Vec::<(u64, String)>::new());

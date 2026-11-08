@@ -2,6 +2,7 @@ use crate::types::Context;
 use color_eyre::Result;
 use poise::serenity_prelude::all::{EditMember, Timestamp, User};
 use regex::Regex;
+use std::sync::LazyLock;
 
 #[poise::command(slash_command, guild_only, required_permissions = "MODERATE_MEMBERS")]
 pub async fn timeout(
@@ -112,10 +113,10 @@ pub async fn timeout(
     Ok(())
 }
 
-fn parse_duration(input: &str) -> Option<u64> {
-    let re = Regex::new(r"(\d+)([smhdw])").unwrap();
+static DURATION_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)([smhdw])").unwrap());
 
-    if let Some(caps) = re.captures(input) {
+fn parse_duration(input: &str) -> Option<u64> {
+    if let Some(caps) = DURATION_RE.captures(input) {
         let value: u64 = caps[1].parse().ok()?;
         let unit = &caps[2];
 
